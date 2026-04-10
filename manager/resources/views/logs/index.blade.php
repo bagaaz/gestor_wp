@@ -98,10 +98,16 @@
                 <h3 class="text-lg font-semibold text-gray-900">Log do Laravel</h3>
                 <div class="flex items-center gap-3">
                     <span class="text-xs text-gray-400">storage/logs/laravel.log</span>
-                    <form action="{{ route('logs.clear-laravel') }}" method="POST"
-                          onsubmit="return confirm('Tem certeza que deseja limpar o log?')">
+                    <form id="clear-laravel-log" action="{{ route('logs.clear-laravel') }}" method="POST">
                         @csrf
-                        <button type="submit" class="text-xs text-red-600 hover:text-red-800 font-medium">
+                        <button type="button"
+                                @click="$dispatch('confirm-action', {
+                                    title: 'Limpar log do Laravel',
+                                    message: 'Tem certeza que deseja limpar o log? Todo o conteúdo será apagado.',
+                                    action: 'clear-laravel-log',
+                                    variant: 'warning'
+                                })"
+                                class="text-xs text-red-600 hover:text-red-800 font-medium">
                             <i class="fas fa-trash-alt mr-1"></i> Limpar
                         </button>
                     </form>

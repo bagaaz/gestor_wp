@@ -46,7 +46,12 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Permissões
 RUN usermod -u 1000 www-data && groupmod -g 1000 www-data
 
+# Entrypoint que dá acesso ao Docker socket para www-data
+COPY entrypoint-manager.sh /usr/local/bin/entrypoint-manager.sh
+RUN chmod +x /usr/local/bin/entrypoint-manager.sh
+
 WORKDIR /var/www/manager
 
 EXPOSE 9000
+ENTRYPOINT ["/usr/local/bin/entrypoint-manager.sh"]
 CMD ["php-fpm"]

@@ -79,11 +79,16 @@
                             </a>
                         </div>
 
-                        <form action="<?php echo e(route('sites.destroy', $site)); ?>" method="POST"
-                              onsubmit="return confirm('Tem certeza que deseja remover o site <?php echo e($site->name); ?>?')">
+                        <form id="delete-site-<?php echo e($site->id); ?>" action="<?php echo e(route('sites.destroy', $site)); ?>" method="POST">
                             <?php echo csrf_field(); ?>
                             <?php echo method_field('DELETE'); ?>
-                            <button type="submit" class="text-red-400 hover:text-red-600 p-1.5" title="Remover site">
+                            <button type="button"
+                                    @click="$dispatch('confirm-action', {
+                                        title: 'Remover site',
+                                        message: 'Tem certeza que deseja remover o site <?php echo e($site->name); ?>?',
+                                        action: 'delete-site-<?php echo e($site->id); ?>'
+                                    })"
+                                    class="text-red-400 hover:text-red-600 p-1.5" title="Remover site">
                                 <i class="fas fa-trash-alt text-sm"></i>
                             </button>
                         </form>

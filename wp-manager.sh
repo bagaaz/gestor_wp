@@ -95,7 +95,7 @@ run_mysql() {
 run_wpcli() {
     local site_name="$1"
     shift
-    docker compose run --rm -w "/var/www/sites/${site_name}" wpcli "$@"
+    docker exec -u www-data -w "/var/www/sites/${site_name}" wp-php wp "$@"
 }
 
 get_db_name() {
@@ -300,7 +300,6 @@ PHP
     log_info "Instalando tema Hello Elementor e removendo temas padrão..."
 
     run_wpcli "$site_name" theme install hello-elementor --activate
-    run_wpcli "$site_name" plugin install elementor --activate
 
     # Remover todos os temas padrão (twentytwenty*, etc)
     local all_themes=$(run_wpcli "$site_name" theme list --status=inactive --field=name 2>/dev/null || echo "")
@@ -930,7 +929,7 @@ cmd_shell() {
     if [[ $# -gt 0 ]]; then
         run_wpcli "$site_name" "$@"
     else
-        docker compose run --rm -w "/var/www/sites/${site_name}" --entrypoint bash wpcli
+        docker exec -it -w "/var/www/sites/${site_name}" wp-php bash
     fi
 }
 

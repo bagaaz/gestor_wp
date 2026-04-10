@@ -58,6 +58,9 @@ tls off\n\
 tls_starttls off\n\
 " > /etc/msmtprc
 
+# PHP ini customizado (baked na imagem, pode ser sobrescrito por volume mount)
+COPY php.ini /usr/local/etc/php/conf.d/custom.ini
+
 # Permissões
 RUN usermod -u 1000 www-data && groupmod -g 1000 www-data
 

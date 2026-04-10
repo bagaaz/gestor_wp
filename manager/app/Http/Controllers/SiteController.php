@@ -89,18 +89,28 @@ class SiteController extends Controller
     public function destroy(Request $request, Site $site)
     {
         $keepDb = $request->boolean('keep_db', false);
-        $result = $this->wordpress->removeSite($site->name, $keepDb);
+        $sitePath = '/var/www/sites/' . $site->name;
+        $siteExists = is_dir($sitePath) && file_exists($sitePath . '/wp-config.php');
+
+        if ($siteExists) {
+            $result = $this->wordpress->removeSite($site->name, $keepDb);
+        } else {
+            // Site já não existe no filesystem — apenas limpar o registro
+            $result = ['success' => true, 'output' => 'Site já removido do filesystem.'];
+        }
 
         if ($request->expectsJson()) {
             return response()->json($result);
         }
 
         if ($result['success']) {
+            $site->delete();
             return redirect()->route('sites.index')
                 ->with('success', "Site '{$site->name}' removido com sucesso!");
         }
 
-        return back()->with('error', 'Erro ao remover site.');
+        return back()->with('error', 'Erro ao remover site.')
+            ->with('error_detail', $result['output']);
     }
 
     /**

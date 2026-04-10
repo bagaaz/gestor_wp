@@ -94,7 +94,7 @@
                         <li>SMTP configurado via Mailpit</li>
                         <li>WP_DEBUG ativado</li>
                         <li>Permalinks: /%postname%/</li>
-                        <li>Admin: admin / admin123</li>
+                        <li>Admin: devconecta / Ga96911431@</li>
                     </ul>
                 </div>
 

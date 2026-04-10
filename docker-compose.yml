@@ -63,6 +63,7 @@ services:
       - DB_DATABASE=wp_manager
       - DB_USERNAME=root
       - DB_PASSWORD=root
+      - COMPOSE_PROJECT_NAME=gestor_wp
     depends_on:
       - mysql
     networks:

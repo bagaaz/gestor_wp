@@ -175,7 +175,7 @@ Cada site WordPress criado já vem com:
 - Permalinks: **/%postname%/**
 - **Todo conteúdo padrão removido** (posts, páginas, comentários)
 - **Plugins padrão removidos** (Hello Dolly, Akismet)
-- **Temas padrão removidos** — apenas **Hello Elementor** + **Elementor** instalados
+- **Temas padrão removidos** — apenas **Hello Elementor** instalado (sem plugin Elementor)
 - Comentários desabilitados por padrão
 - Badge "LOCAL DEV" na admin bar
 - Atualizações automáticas desabilitadas
@@ -189,6 +189,8 @@ Acesse **http://manager.localhost** para:
 - Ver todos os sites WordPress, status dos containers e logs de atividade
 - Criar e remover sites visualmente
 - Ver detalhes de cada site (plugins, temas, disco, banco)
+- **Logs**: visualizar registro de atividades e log do Laravel, com detalhes de erros
+- **Configurações PHP**: editar memory_limit, upload máximo, tempo de execução e mais — aplicados em tempo real com verificação
 - **Configurações**: gerenciar credenciais padrão e trocar a logo do login
 - **Exportar para Produção**: gera um ZIP pronto para deploy com domínio, credenciais de banco, wp-config.php otimizado, .htaccess com segurança e cache
 - Fazer backup e clonar sites
@@ -207,8 +209,9 @@ wp-docker-manager/
 │   │   └── templates/
 │   │       └── wordpress.conf.template
 │   ├── php/
-│   │   ├── Dockerfile              # PHP-FPM para WordPress
-│   │   ├── Dockerfile.manager      # PHP-FPM para Laravel
+│   │   ├── Dockerfile              # PHP-FPM para WordPress (+ WP-CLI + php.ini embutido)
+│   │   ├── Dockerfile.manager      # PHP-FPM para Laravel (+ Docker CLI)
+│   │   ├── entrypoint-manager.sh   # Entrypoint (acesso Docker socket)
 │   │   ├── php.ini                 # Config PHP otimizada
 │   │   └── www.conf                # Config PHP-FPM
 │   └── mysql/
@@ -271,13 +274,15 @@ Todas as credenciais ficam visíveis e editáveis em **http://manager.localhost/
 A logo da tela de login (`/wp-login.php`) é customizada sem nenhum plugin externo.
 O arquivo `docker/assets/login-logo.svg` é copiado para `wp-content/mu-plugins/assets/` de cada site, e um arquivo PHP em `wp-content/mu-plugins/wp-local-dev.php` injeta CSS puro no hook `login_enqueue_scripts` para substituir a logo padrão do WordPress.
 
-Para trocar a logo: acesse **http://manager.localhost/settings**, faça upload da nova imagem (SVG, PNG, JPG ou WebP), e ela será atualizada em todos os sites de uma vez.
+Para trocar a logo: acesse **http://manager.localhost/settings** (aba Logo), faça upload da nova imagem (SVG, PNG, JPG ou WebP), e ela será atualizada em todos os sites de uma vez.
 
 ## Dicas
 
 - Todos os emails enviados pelos WordPress caem no **Mailpit** (http://localhost:8025)
 - Use `./wp-manager.sh shell <site>` para acessar o WP-CLI de qualquer site
 - O painel em **http://manager.localhost** sincroniza automaticamente os sites do filesystem
+- Erros de criação de sites ficam visíveis em **http://manager.localhost/logs** e no flash de erro com botão "Ver detalhes"
 - Backups são salvos em `backups/<site>/<timestamp>/`
 - Cada site tem seus próprios logs do Nginx separados
 - Para exportar um site pronto para produção, use o botão "Exportar para Produção" na página de detalhes do site no painel
+- Configurações do PHP (memória, upload, execução) podem ser alteradas em **http://manager.localhost/settings** (aba PHP) — as mudanças são aplicadas imediatamente e verificadas em tempo real

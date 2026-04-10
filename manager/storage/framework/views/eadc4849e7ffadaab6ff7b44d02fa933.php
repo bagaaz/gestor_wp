@@ -136,6 +136,21 @@
                 </div>
             <?php endif; ?>
 
+            <?php if(session('warning')): ?>
+                <div class="mx-6 mt-4 fade-in" x-data="{ show: true }" x-show="show">
+                    <div class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <?php echo e(session('warning')); ?>
+
+                        </div>
+                        <button @click="show = false" class="text-amber-600 hover:text-amber-800">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <?php if(session('error')): ?>
                 <div class="mx-6 mt-4 fade-in" x-data="{ show: true, showDetail: false }" x-show="show">
                     <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
@@ -167,6 +182,9 @@
             </main>
         </div>
     </div>
+
+    
+    <?php echo $__env->make('components.confirm-modal', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 </body>
 </html>
 <?php /**PATH /var/www/manager/resources/views/layouts/app.blade.php ENDPATH**/ ?>

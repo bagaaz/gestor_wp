@@ -3,10 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Services\PhpConfigService;
 use Illuminate\Http\Request;
 
 class SettingsController extends Controller
 {
+    public function __construct(
+        private PhpConfigService $phpConfig
+    ) {}
+
     public function index()
     {
         $settings = Setting::all()->pluck('value', 'key')->toArray();
@@ -15,7 +20,12 @@ class SettingsController extends Controller
         $logoPath = '/var/www/sites/../docker/assets/login-logo.svg';
         $hasLogo = file_exists(base_path('../docker/assets/login-logo.svg'));
 
-        return view('settings.index', compact('settings', 'hasLogo'));
+        // PHP config
+        $phpDirectives = PhpConfigService::DIRECTIVES;
+        $phpValues = $this->phpConfig->readFromFile();
+        $phpActiveValues = $this->phpConfig->readActiveValues();
+
+        return view('settings.index', compact('settings', 'hasLogo', 'phpDirectives', 'phpValues', 'phpActiveValues'));
     }
 
     public function update(Request $request)
@@ -37,6 +47,42 @@ class SettingsController extends Controller
 
         return redirect()->route('settings.index')
             ->with('success', 'Configurações salvas com sucesso!');
+    }
+
+    /**
+     * Atualizar configurações do PHP
+     */
+    public function updatePhp(Request $request)
+    {
+        $values = $request->only(array_keys(PhpConfigService::DIRECTIVES));
+
+        $result = $this->phpConfig->update($values);
+
+        if (!$result['success']) {
+            return back()
+                ->withErrors($result['errors'])
+                ->withInput()
+                ->with('active_tab', 'php');
+        }
+
+        // Verificar se todos os valores foram aplicados
+        $mismatches = [];
+        foreach ($values as $key => $expected) {
+            $active = $result['active_values'][$key] ?? null;
+            if ($active !== null && $active !== $expected) {
+                $mismatches[$key] = "Configurado: {$expected}, Ativo: {$active}";
+            }
+        }
+
+        if (!empty($mismatches)) {
+            return redirect()->route('settings.index', ['tab' => 'php'])
+                ->with('warning', 'Configurações salvas, mas alguns valores diferem. Pode ser necessário rodar: ./wp-manager.sh rebuild')
+                ->with('active_tab', 'php');
+        }
+
+        return redirect()->route('settings.index', ['tab' => 'php'])
+            ->with('success', 'Configurações PHP aplicadas e verificadas com sucesso!')
+            ->with('active_tab', 'php');
     }
 
     /**

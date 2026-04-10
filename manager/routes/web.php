@@ -28,4 +28,5 @@ Route::post('/logs/clear-laravel', [LogController::class, 'clearLaravel'])->name
 // Configurações
 Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
 Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
+Route::post('/settings/php', [SettingsController::class, 'updatePhp'])->name('settings.php');
 Route::post('/settings/logo', [SettingsController::class, 'uploadLogo'])->name('settings.logo');

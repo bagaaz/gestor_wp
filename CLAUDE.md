@@ -30,8 +30,9 @@ wp-docker-manager/
 │   │   └── templates/
 │   │       └── wordpress.conf.template         # Template usado para gerar configs de sites
 │   ├── php/
-│   │   ├── Dockerfile                          # PHP-FPM para WordPress (gd, imagick, redis, wp-cli, msmtp)
-│   │   ├── Dockerfile.manager                  # PHP-FPM para Laravel (composer incluso)
+│   │   ├── Dockerfile                          # PHP-FPM para WordPress (gd, imagick, redis, wp-cli, msmtp, php.ini embutido)
+│   │   ├── Dockerfile.manager                  # PHP-FPM para Laravel (composer + Docker CLI + Compose plugin)
+│   │   ├── entrypoint-manager.sh               # Entrypoint que dá acesso ao Docker socket para www-data
 │   │   ├── php.ini                             # upload_max=256M, memory=512M, display_errors=On, msmtp
 │   │   └── www.conf                            # Pool config do PHP-FPM
 │   └── mysql/
@@ -41,7 +42,10 @@ wp-docker-manager/
 ├── manager/                                    # Projeto Laravel 13 (painel visual)
 │   ├── app/
 │   │   ├── Http/Controllers/
+│   │   │   ├── Controller.php                  # Base controller (classe abstrata)
 │   │   │   ├── DashboardController.php         # Dashboard com stats, containers, logs
+│   │   │   ├── LogController.php               # Página de logs (atividades + laravel.log)
+│   │   │   ├── SettingsController.php          # Configurações: credenciais, PHP, logo
 │   │   │   └── SiteController.php              # CRUD de sites + API para o CLI
 │   │   ├── Models/
 │   │   │   ├── Site.php                        # Model principal (sites WordPress)
@@ -49,6 +53,7 @@ wp-docker-manager/
 │   │   │   └── ActivityLog.php                 # Log de atividades
 │   │   ├── Services/
 │   │   │   ├── DockerService.php               # Interação com Docker (status, mysql queries)
+│   │   │   ├── PhpConfigService.php            # Leitura/escrita do php.ini, reload, verificação
 │   │   │   └── WordPressService.php            # Lógica de criar/remover/clonar sites
 │   │   └── Providers/
 │   │       └── AppServiceProvider.php          # Singletons dos Services
@@ -61,10 +66,14 @@ wp-docker-manager/
 │   │       ├── create.blade.php                # Formulário de criação
 │   │       ├── show.blade.php                  # Detalhes do site (plugins, backups, ações)
 │   │       └── export.blade.php                # Formulário de export para produção
+│   │   ├── logs/
+│   │   │   └── index.blade.php                 # Logs: atividades (banco) + log Laravel (arquivo)
 │   │   └── settings/
-│   │       └── index.blade.php                 # Credenciais, logo, referência rápida
+│   │       └── index.blade.php                 # Abas: Geral (credenciais), PHP (config), Logo
+│   │   └── components/
+│   │       └── confirm-modal.blade.php         # Modal de confirmação reutilizável (Alpine.js)
 │   ├── routes/
-│   │   ├── web.php                             # Rotas web (dashboard + sites + settings + export)
+│   │   ├── web.php                             # Rotas web (dashboard + sites + logs + settings + export)
 │   │   └── api.php                             # API interna (POST/DELETE /api/sites)
 │   ├── config/                                 # app, database, cache, session, view
 │   ├── composer.json
@@ -110,7 +119,7 @@ wp-docker-manager/
 - Atualizações automáticas desabilitadas
 - **Todo conteúdo padrão removido**: posts (Hello World), páginas (Sample Page, Privacy Policy), comentários
 - **Plugins padrão removidos**: Hello Dolly, Akismet
-- **Temas padrão removidos**: todos os twenty* — apenas **Hello Elementor** ativado + **Elementor** plugin
+- **Temas padrão removidos**: todos os twenty* — apenas **Hello Elementor** ativado (sem plugin Elementor)
 - Comentários desabilitados por padrão (fechados, pingbacks off, trackbacks off)
 - **Logo customizada** na tela `/wp-login.php` (carregada de `wp-content/mu-plugins/assets/login-logo.svg`)
 - Logo master fica em `docker/assets/login-logo.svg` e é copiada para cada site na criação
@@ -144,7 +153,8 @@ Aplicado via mu-plugin `wp-local-dev.php` (e `wp-production-security.php` no exp
 - **Sites CRUD**: criar, visualizar detalhes (plugins/temas/disco/banco), remover
 - **Clone**: clonar site com banco e search-replace de URLs
 - **Backup**: backup completo (arquivos + banco)
-- **Configurações** (`/settings`): editar credenciais padrão WP e MySQL, trocar logo do login, referência rápida
+- **Logs** (`/logs`): duas abas — registro de atividades (banco) e log do Laravel (arquivo), com opção de limpar
+- **Configurações** (`/settings`): três abas — **Geral** (credenciais WP e MySQL, referência rápida), **PHP** (memory_limit, upload, execução, com verificação em tempo real), **Logo** (upload de logo do login)
 - **Export para Produção** (`/sites/{id}/export`): gera ZIP com domínio/banco substituídos
 
 ### Export para Produção — O que faz
@@ -169,9 +179,12 @@ O export (`ExportController`) gera um ZIP pronto para deploy:
 ### Docker
 - Network: `wp-network` (bridge)
 - Volume persistente: `mysql_data` para dados do MySQL
-- Container `wpcli` usa profile `cli` (só roda sob demanda via `docker compose run`)
+- O WP-CLI é executado via `docker exec` no container `wp-php` (que já possui WP-CLI instalado e os volumes corretos)
 - Containers WordPress compartilham o mesmo PHP-FPM (`wp-php`)
-- Container separado `wp-php-manager` para o Laravel
+- Container separado `wp-php-manager` para o Laravel, com Docker CLI + Compose plugin instalados e acesso ao Docker socket
+- O container `php-manager` monta o projeto raiz em `/var/www/project` e os sites em `/var/www/sites`
+- Env `COMPOSE_PROJECT_NAME=gestor_wp` garante que comandos `docker compose` de dentro do container encontrem os containers corretos
+- O `php.ini` customizado é embutido na imagem PHP (via `COPY` no Dockerfile) para garantir que o WP-CLI use `memory_limit=512M`
 
 ## Portas
 
@@ -215,7 +228,7 @@ O export (`ExportController`) gera um ZIP pronto para deploy:
 6. Aplica configs pt-BR (timezone, data, permalinks)
 7. Desabilita comentários, pingbacks, trackbacks
 8. Remove TODO conteúdo padrão (posts, páginas, comentários, lixeira)
-9. Instala tema **Hello Elementor** + plugin **Elementor** e remove TODOS os temas padrão (twenty*)
+9. Instala tema **Hello Elementor** (sem plugin Elementor) e remove TODOS os temas padrão (twenty*)
 10. Remove plugins padrão (Hello Dolly, Akismet)
 11. Instala `mu-plugin` completo: SVG/WebP, Mailpit SMTP, logo login, hardening segurança, badge LOCAL DEV
 12. Copia logo de `docker/assets/login-logo.svg` para `wp-content/mu-plugins/assets/`
@@ -235,8 +248,15 @@ O export (`ExportController`) gera um ZIP pronto para deploy:
 ## Notas para Desenvolvimento
 
 - Ao modificar o `Dockerfile` ou `Dockerfile.manager`, rode `./wp-manager.sh rebuild`
-- Ao modificar `php.ini` ou `my.cnf`, rode `./wp-manager.sh restart`
+- Ao modificar `php.ini`, rode `./wp-manager.sh rebuild` (o php.ini é embutido na imagem via COPY, não apenas montado como volume)
+- Ao modificar `my.cnf`, rode `./wp-manager.sh restart`
 - Ao modificar templates Nginx, os sites existentes NÃO são afetados (só novos)
 - O `docker-compose.yml` monta `./sites` e `./manager` como volumes bind — alterações nos arquivos locais refletem imediatamente nos containers
-- O WP-CLI roda em um container efêmero (profile `cli`) que é criado e destruído a cada comando
-- O painel Laravel usa `shell_exec()` para interagir com Docker e o `wp-manager.sh` — isso funciona porque o container `php-manager` tem acesso ao Docker socket (se necessário, montar `/var/run/docker.sock`)
+- O WP-CLI roda via `docker exec` no container `wp-php` já existente (não cria containers efêmeros)
+- O painel Laravel usa `shell_exec()` para interagir com Docker e o `wp-manager.sh` — o container `php-manager` tem Docker CLI instalado e o Docker socket montado (`/var/run/docker.sock`)
+- O `entrypoint-manager.sh` detecta o GID do Docker socket e adiciona `www-data` ao grupo correspondente em runtime (portável entre hosts com GIDs diferentes)
+- Erros de criação de sites são registrados no `ActivityLog` e no `laravel.log`, visíveis na página `/logs` do painel
+- Flash de erro no painel inclui botão "Ver detalhes" que exibe a saída completa do comando que falhou
+- Configurações PHP são editáveis via painel (`/settings?tab=php`). O `PhpConfigService` atualiza o `php.ini`, o `client_max_body_size` do Nginx, reinicia o container PHP e verifica os valores ativos em tempo real
+- O container PHP é reiniciado (não apenas reload) ao mudar `php.ini` porque o bind mount de arquivo único perde a referência quando o arquivo é reescrito (inode muda)
+- Modais de confirmação usam componente Alpine.js (`components/confirm-modal.blade.php`) em vez de `confirm()` nativo do navegador — dispatch evento `confirm-action` com título, mensagem, ID do form e variante (danger/warning)

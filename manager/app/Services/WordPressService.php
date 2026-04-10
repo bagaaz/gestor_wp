@@ -134,8 +134,6 @@ class WordPressService
         $success = str_contains($output ?? '', 'sucesso');
 
         if ($success) {
-            Site::where('name', $name)->delete();
-
             ActivityLog::create([
                 'action' => 'removed',
                 'description' => "Site '{$name}' removido" . ($keepDb ? ' (banco mantido)' : ''),
