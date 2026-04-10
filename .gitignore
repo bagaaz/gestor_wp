@@ -1,0 +1,22 @@
+# Sites WordPress (cada dev cria os seus)
+sites/*/
+
+# Backups locais
+backups/
+
+# Laravel vendor
+manager/vendor/
+manager/node_modules/
+manager/.env
+manager/storage/logs/*.log
+
+# Docker volumes
+mysql_data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
