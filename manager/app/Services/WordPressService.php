@@ -42,9 +42,13 @@ class WordPressService
                 ]
             );
 
-            // Atualizar disk usage
+            // Atualizar disk usage e wp_version
             $size = $this->getDirectorySize($dir);
-            $site->update(['disk_usage' => $size]);
+            $wpVersion = $this->runWpCli($name, 'core version');
+            $site->update([
+                'disk_usage' => $size,
+                'wp_version' => $wpVersion ?: $site->wp_version,
+            ]);
         }
 
         // Marcar sites removidos do filesystem
@@ -182,7 +186,7 @@ class WordPressService
 
     private function runWpCli(string $site, string $command): ?string
     {
-        $cmd = "docker compose run --rm -w /var/www/sites/{$site} --entrypoint wp wpcli --allow-root {$command} 2>/dev/null";
+        $cmd = "docker exec wp-php wp --allow-root --path=/var/www/sites/{$site} {$command} 2>/dev/null";
         $result = trim(shell_exec($cmd) ?? '');
         return $result ?: null;
     }
