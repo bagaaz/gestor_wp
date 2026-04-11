@@ -385,6 +385,12 @@ add_filter('upload_size_limit', function () {
 // ==============================
 // Logo customizada na tela de login
 // ==============================
+// Remover o script nativo de caps lock do WP (substituído pelo nosso)
+add_action('login_footer', function () {
+    wp_dequeue_script('user-profile');
+    wp_deregister_script('user-profile');
+}, 1);
+
 add_action('login_enqueue_scripts', function () {
     \$logo_url = content_url('mu-plugins/assets/login-logo.svg');
 
@@ -440,7 +446,9 @@ add_action('login_enqueue_scripts', function () {
         }
 
         /* Card do formulário */
-        .login form {
+        .login form#loginform,
+        .login form#lostpasswordform,
+        .login form#registerform {
             background: #fff !important;
             border: 1px solid #e0e0e0 !important;
             border-radius: 8px !important;
@@ -508,7 +516,141 @@ add_action('login_enqueue_scripts', function () {
             border-color: ' . esc_attr(\$primary) . ' !important;
             box-shadow: 0 0 0 1px ' . esc_attr(\$primary) . ' !important;
         }
+
+        /* Botão mostrar/ocultar senha */
+        .login .wp-hide-pw:focus {
+            outline: none !important;
+            box-shadow: none !important;
+            border: none !important;
+        }
+
+        /* Seletor de idioma */
+        .language-switcher {
+            background: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+            margin-top: 16px !important;
+            padding: 0 !important;
+        }
+        .language-switcher #language-switcher {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+        }
+        .language-switcher .dashicons {
+            color: ' . esc_attr(\$text) . ' !important;
+            opacity: 0.5 !important;
+        }
+        .language-switcher select {
+            border: 1px solid #d0d0d0 !important;
+            border-radius: 6px !important;
+            padding: 4px 8px !important;
+            font-size: 13px !important;
+            color: ' . esc_attr(\$text) . ' !important;
+            background: #fff !important;
+            font-family: "Poppins", sans-serif !important;
+        }
+        .language-switcher select:focus {
+            border-color: ' . esc_attr(\$primary) . ' !important;
+            box-shadow: 0 0 0 1px ' . esc_attr(\$primary) . ' !important;
+            outline: none !important;
+        }
+        .language-switcher .button {
+            background: transparent !important;
+            border: 1px solid #d0d0d0 !important;
+            border-radius: 6px !important;
+            color: ' . esc_attr(\$text) . ' !important;
+            font-size: 13px !important;
+            padding: 4px 12px !important;
+            cursor: pointer !important;
+            font-family: "Poppins", sans-serif !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+        }
+        .language-switcher .button:hover {
+            border-color: ' . esc_attr(\$primary) . ' !important;
+            color: ' . esc_attr(\$primary) . ' !important;
+        }
+
+        /* Aviso Caps Lock */
+        .caps-warning {
+            background: ' . esc_attr(\$bg) . ' !important;
+            border: 1px solid #d0d0d0 !important;
+            border-radius: 6px !important;
+            padding: 8px 12px !important;
+            margin-top: 8px !important;
+            font-size: 12px !important;
+            color: ' . esc_attr(\$text) . ' !important;
+            font-family: "Poppins", sans-serif !important;
+            font-weight: 500 !important;
+        }
+        .caps-warning .caps-icon {
+            vertical-align: middle !important;
+            margin-right: 6px !important;
+        }
+        .caps-warning .caps-icon svg {
+            width: 16px !important;
+            height: 16px !important;
+            vertical-align: middle !important;
+            fill: ' . esc_attr(\$primary) . ' !important;
+            stroke: ' . esc_attr(\$primary) . ' !important;
+        }
+        .caps-warning .caps-warning-text {
+            vertical-align: middle !important;
+        }
     </style>';
+
+    echo '<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var passInput = document.getElementById("user_pass");
+        if (!passInput) return;
+
+        var warning = document.getElementById("caps-warning");
+
+        // Se o WP ainda não criou o elemento, criar manualmente via DOM
+        if (!warning) {
+            var wrapper = passInput.closest("div");
+            if (!wrapper) return;
+            warning = document.createElement("div");
+            warning.id = "caps-warning";
+            warning.className = "caps-warning";
+            warning.style.display = "none";
+
+            var icon = document.createElement("span");
+            icon.className = "caps-icon";
+            icon.setAttribute("aria-hidden", "true");
+            var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("viewBox", "0 0 24 26");
+            var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", "M12 5L19 15H16V19H8V15H5L12 5Z");
+            var rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            rect.setAttribute("x", "8"); rect.setAttribute("y", "21");
+            rect.setAttribute("width", "8"); rect.setAttribute("height", "1.5");
+            rect.setAttribute("rx", "0.75");
+            svg.appendChild(path); svg.appendChild(rect);
+            icon.appendChild(svg);
+
+            var text = document.createElement("span");
+            text.className = "caps-warning-text";
+            text.textContent = "Caps Lock ativado";
+
+            warning.appendChild(icon);
+            warning.appendChild(text);
+            wrapper.appendChild(warning);
+        }
+
+        function updateCapsLock(e) {
+            if (typeof e.getModifierState === "function") {
+                var capsOn = e.getModifierState("CapsLock");
+                warning.style.display = capsOn ? "block" : "none";
+            }
+        }
+
+        passInput.addEventListener("keydown", updateCapsLock);
+        passInput.addEventListener("keyup", updateCapsLock);
+    });
+    </script>';
 });
 
 // Link da logo aponta para o próprio site

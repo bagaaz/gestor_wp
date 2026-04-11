@@ -335,6 +335,7 @@
                         <div>
                             <label for="plugin_name" class="block text-sm font-medium text-gray-700 mb-1">
                                 Nome do plugin <span class="text-red-500">*</span>
+                                <i class="fas fa-question-circle text-gray-400 ml-1 cursor-help" title="Apenas para identificacao no painel. O WordPress nao fornece essa info pelo slug antes da instalacao."></i>
                             </label>
                             <input type="text" name="name" id="plugin_name" required
                                    value="{{ old('name') }}"
@@ -382,7 +383,10 @@
 
                         <!-- Descrição -->
                         <div>
-                            <label for="plugin_description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                            <label for="plugin_description" class="block text-sm font-medium text-gray-700 mb-1">
+                                Descrição
+                                <i class="fas fa-question-circle text-gray-400 ml-1 cursor-help" title="Opcional. Ajuda a identificar o plugin na listagem e na tela de selecao ao criar sites."></i>
+                            </label>
                             <input type="text" name="description" id="plugin_description"
                                    value="{{ old('description') }}"
                                    placeholder="Formulário de contato"
