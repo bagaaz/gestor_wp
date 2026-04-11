@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(curl:*)",
-      "Bash(docker exec wp-php:*)"
+      "Bash(docker exec wp-php:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git commit -a -m ':*)"
     ]
   }
 }

@@ -9,6 +9,9 @@ manager/vendor/
 manager/node_modules/
 manager/.env
 manager/storage/logs/*.log
+manager/storage/framework/sessions/
+manager/storage/framework/cache/
+manager/storage/framework/views/
 
 # Docker volumes
 mysql_data/
