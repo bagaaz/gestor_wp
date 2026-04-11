@@ -214,12 +214,12 @@ class SettingsController extends Controller
         if ($validated['source'] === 'upload' && $request->hasFile('plugin_file')) {
             $file = $request->file('plugin_file');
             $slug = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-            $pluginsDir = base_path('../docker/plugins');
+            $pluginsDir = storage_path('app/plugins');
             if (!is_dir($pluginsDir)) {
                 mkdir($pluginsDir, 0755, true);
             }
             $file->move($pluginsDir, $file->getClientOriginalName());
-            $filePath = '/var/www/project/docker/plugins/' . $file->getClientOriginalName();
+            $filePath = '/var/www/manager/storage/app/plugins/' . $file->getClientOriginalName();
         }
 
         PluginRegistry::updateOrCreate(
@@ -243,7 +243,7 @@ class SettingsController extends Controller
     {
         // Remover arquivo ZIP se for upload
         if ($plugin->source === 'upload' && $plugin->file_path) {
-            $localPath = base_path('../docker/plugins/' . basename($plugin->file_path));
+            $localPath = storage_path('app/plugins/' . basename($plugin->file_path));
             if (file_exists($localPath)) {
                 unlink($localPath);
             }

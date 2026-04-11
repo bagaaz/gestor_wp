@@ -14,7 +14,7 @@ manager/storage/framework/cache/
 manager/storage/framework/views/
 
 # Plugins enviados via upload
-docker/plugins/
+manager/storage/app/plugins/
 
 # Docker volumes
 mysql_data/
