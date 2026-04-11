@@ -133,8 +133,66 @@ class SettingsController extends Controller
             $this->updateMuPluginLogoExtension($sitesDir, $extension);
         }
 
-        return redirect()->route('settings.index')
+        return redirect()->route('settings.index', ['tab' => 'login'])
             ->with('success', 'Logo atualizada em todos os sites!');
+    }
+
+    /**
+     * Atualizar cores da tela de login
+     */
+    public function updateLoginColors(Request $request)
+    {
+        $validated = $request->validate([
+            'login_primary_color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'login_bg_color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'login_text_color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ]);
+
+        foreach ($validated as $key => $value) {
+            Setting::set($key, $value);
+        }
+
+        // Aplicar em todos os sites existentes
+        $this->applyLoginColorsToAllSites($validated);
+
+        return redirect()->route('settings.index', ['tab' => 'login'])
+            ->with('success', 'Cores do login atualizadas em todos os sites!');
+    }
+
+    /**
+     * Aplica as cores do login em todos os mu-plugins existentes
+     */
+    private function applyLoginColorsToAllSites(array $colors): void
+    {
+        $sitesDir = '/var/www/sites';
+        if (!is_dir($sitesDir)) return;
+
+        $primary = $colors['login_primary_color'];
+        $bg = $colors['login_bg_color'];
+        $text = $colors['login_text_color'];
+
+        foreach (glob($sitesDir . '/*/wp-content/mu-plugins/wp-local-dev.php') as $muPlugin) {
+            $content = file_get_contents($muPlugin);
+
+            // Substituir as variáveis PHP de cor no mu-plugin
+            $content = preg_replace(
+                "/\\$primary\s*=\s*'#[0-9A-Fa-f]{6}'/",
+                "\$primary = '{$primary}'",
+                $content
+            );
+            $content = preg_replace(
+                "/\\$bg\s*=\s*'#[0-9A-Fa-f]{6}'/",
+                "\$bg      = '{$bg}'",
+                $content
+            );
+            $content = preg_replace(
+                "/\\$text\s*=\s*'#[0-9A-Fa-f]{6}'/",
+                "\$text    = '{$text}'",
+                $content
+            );
+
+            file_put_contents($muPlugin, $content);
+        }
     }
 
     /**

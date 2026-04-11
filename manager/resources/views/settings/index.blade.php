@@ -24,10 +24,10 @@
                       {{ $tab === 'plugins' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
                 <i class="fas fa-puzzle-piece mr-1"></i> Plugins
             </a>
-            <a href="{{ route('settings.index', ['tab' => 'logo']) }}"
+            <a href="{{ route('settings.index', ['tab' => 'login']) }}"
                class="px-4 py-2 rounded-md text-sm font-medium transition-colors
-                      {{ $tab === 'logo' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                <i class="fas fa-image mr-1"></i> Logo
+                      {{ $tab === 'login' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                <i class="fas fa-paint-brush mr-1"></i> Login
             </a>
         </nav>
     </div>
@@ -469,37 +469,104 @@
             </div>
         </div>
 
-    {{-- ===== TAB: LOGO ===== --}}
-    @elseif($tab === 'logo')
-        <div class="max-w-2xl">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Logo do Login WordPress</h3>
-                    <p class="text-sm text-gray-500 mt-1">Imagem exibida na tela de login (/wp-admin) de todos os sites.</p>
-                </div>
-                <div class="p-6">
-                    <!-- Preview da logo atual -->
-                    <div class="mb-6 p-6 bg-gray-100 rounded-xl flex flex-col items-center">
-                        <p class="text-xs text-gray-500 mb-3 uppercase tracking-wider font-medium">Logo Atual</p>
-                        @if($hasLogo)
-                            <div class="bg-white rounded-lg p-4 shadow-sm w-full max-w-xs">
-                                <img src="data:image/svg+xml;base64,{{ base64_encode(file_get_contents(base_path('../docker/assets/login-logo.svg'))) }}"
-                                     alt="Login Logo" class="w-full h-20 object-contain">
-                            </div>
-                        @else
-                            <div class="bg-white rounded-lg p-8 shadow-sm text-center">
-                                <i class="fas fa-image text-4xl text-gray-300 mb-2"></i>
-                                <p class="text-sm text-gray-400">Nenhuma logo definida</p>
-                            </div>
-                        @endif
-                    </div>
+    {{-- ===== TAB: LOGIN ===== --}}
+    @elseif($tab === 'login')
+        @php
+            $loginBg = $settings['login_bg_color'] ?? '#f5f5f5';
+            $loginPrimary = $settings['login_primary_color'] ?? '#204AE3';
+            $loginText = $settings['login_text_color'] ?? '#111317';
+        @endphp
 
-                    <form action="{{ route('settings.logo') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" x-data="{
+            bg: '{{ $loginBg }}',
+            primary: '{{ $loginPrimary }}',
+            text: '{{ $loginText }}'
+        }">
+            <!-- Configurações -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Cores -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Cores da Tela de Login</h3>
+                        <p class="text-sm text-gray-500 mt-1">Personalize as cores da tela de login (/wp-login.php) de todos os sites.</p>
+                    </div>
+                    <form action="{{ route('settings.login-colors') }}" method="POST" class="p-6 space-y-5">
                         @csrf
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Enviar nova logo</label>
-                            <div class="flex items-center gap-3">
-                                <label class="flex-1 flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div>
+                                <label for="login_primary_color" class="block text-sm font-medium text-gray-700 mb-1">Cor primaria</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="color" name="login_primary_color" id="login_primary_color"
+                                           x-model="primary"
+                                           class="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer p-0.5">
+                                    <input type="text" x-model="primary" readonly
+                                           class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono bg-gray-50 text-gray-700">
+                                </div>
+                                <p class="mt-1 text-xs text-gray-400">Botao, links hover, focus</p>
+                            </div>
+
+                            <div>
+                                <label for="login_bg_color" class="block text-sm font-medium text-gray-700 mb-1">Cor de fundo</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="color" name="login_bg_color" id="login_bg_color"
+                                           x-model="bg"
+                                           class="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer p-0.5">
+                                    <input type="text" x-model="bg" readonly
+                                           class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono bg-gray-50 text-gray-700">
+                                </div>
+                                <p class="mt-1 text-xs text-gray-400">Fundo da pagina</p>
+                            </div>
+
+                            <div>
+                                <label for="login_text_color" class="block text-sm font-medium text-gray-700 mb-1">Cor do texto</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="color" name="login_text_color" id="login_text_color"
+                                           x-model="text"
+                                           class="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer p-0.5">
+                                    <input type="text" x-model="text" readonly
+                                           class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono bg-gray-50 text-gray-700">
+                                </div>
+                                <p class="mt-1 text-xs text-gray-400">Labels, links, textos</p>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-gray-200">
+                            <button type="submit" class="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-palette"></i> Salvar Cores e Aplicar em Todos os Sites
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Logo -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Logo do Login</h3>
+                        <p class="text-sm text-gray-500 mt-1">Imagem exibida na tela de login de todos os sites.</p>
+                    </div>
+                    <div class="p-6">
+                        <!-- Preview da logo atual -->
+                        <div class="mb-6 p-6 bg-gray-100 rounded-xl flex flex-col items-center">
+                            <p class="text-xs text-gray-500 mb-3 uppercase tracking-wider font-medium">Logo Atual</p>
+                            @if($hasLogo)
+                                <div class="bg-white rounded-lg p-4 shadow-sm w-full max-w-xs">
+                                    <img src="data:image/svg+xml;base64,{{ base64_encode(file_get_contents(base_path('../docker/assets/login-logo.svg'))) }}"
+                                         alt="Login Logo" class="w-full h-20 object-contain">
+                                </div>
+                            @else
+                                <div class="bg-white rounded-lg p-8 shadow-sm text-center">
+                                    <i class="fas fa-image text-4xl text-gray-300 mb-2"></i>
+                                    <p class="text-sm text-gray-400">Nenhuma logo definida</p>
+                                </div>
+                            @endif
+                        </div>
+
+                        <form action="{{ route('settings.logo') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                            @csrf
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Enviar nova logo</label>
+                                <label class="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
                                     <div class="text-center">
                                         <i class="fas fa-cloud-upload-alt text-gray-400 text-lg mb-1"></i>
                                         <p class="text-sm text-gray-600">Clique para selecionar</p>
@@ -508,16 +575,62 @@
                                     <input type="file" name="login_logo" accept=".svg,.png,.jpg,.jpeg,.webp" class="hidden"
                                            onchange="document.getElementById('logo-filename').textContent = this.files[0]?.name || ''">
                                 </label>
+                                <p id="logo-filename" class="mt-1 text-sm text-blue-600 font-medium"></p>
+                                @error('login_logo')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
                             </div>
-                            <p id="logo-filename" class="mt-1 text-sm text-blue-600 font-medium"></p>
-                            @error('login_logo')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
+                            <button type="submit" class="w-full bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+                                <i class="fas fa-upload mr-1"></i> Atualizar Logo em Todos os Sites
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview ao vivo -->
+            <div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 sticky top-6">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            Preview ao Vivo
+                        </h3>
+                    </div>
+                    <div class="p-4">
+                        <div class="rounded-lg overflow-hidden border border-gray-200" :style="'background-color: ' + bg">
+                            <div class="p-6 flex flex-col items-center">
+                                <!-- Logo placeholder -->
+                                <div class="w-32 h-12 rounded mb-4 flex items-center justify-center" :style="'background-color: ' + primary">
+                                    <span class="text-xs font-bold" :style="'color: ' + bg">LOGO</span>
+                                </div>
+                                <!-- Form -->
+                                <div class="w-full bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                                    <label class="block text-xs font-medium mb-1" :style="'color: ' + text">Usuario</label>
+                                    <div class="w-full h-7 rounded border border-gray-300 mb-3 px-2 flex items-center">
+                                        <span class="text-xs text-gray-400">devconecta</span>
+                                    </div>
+                                    <label class="block text-xs font-medium mb-1" :style="'color: ' + text">Senha</label>
+                                    <div class="w-full h-7 rounded border border-gray-300 mb-3 px-2 flex items-center">
+                                        <span class="text-xs text-gray-400">********</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 mb-3">
+                                        <div class="w-3.5 h-3.5 rounded border-2 flex items-center justify-center" :style="'border-color: ' + primary + '; background-color: ' + primary">
+                                            <svg class="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                        </div>
+                                        <span class="text-xs" :style="'color: ' + text">Lembrar-me</span>
+                                    </div>
+                                    <button class="w-full py-1.5 rounded text-xs font-semibold" :style="'background-color: ' + primary + '; color: ' + bg">
+                                        Acessar
+                                    </button>
+                                </div>
+                                <!-- Links -->
+                                <div class="mt-3 text-center">
+                                    <span class="text-xs" :style="'color: ' + text">Perdeu a senha?</span>
+                                </div>
+                            </div>
                         </div>
-                        <button type="submit" class="w-full bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
-                            <i class="fas fa-upload mr-1"></i> Atualizar Logo em Todos os Sites
-                        </button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>

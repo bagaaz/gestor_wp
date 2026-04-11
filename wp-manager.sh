@@ -386,16 +386,127 @@ add_filter('upload_size_limit', function () {
 // Logo customizada na tela de login
 // ==============================
 add_action('login_enqueue_scripts', function () {
-    $logo_url = content_url('mu-plugins/assets/login-logo.svg');
-    echo '<style>
+    \$logo_url = content_url('mu-plugins/assets/login-logo.svg');
+
+    // Cores configuráveis — atualizadas pelo painel em Configurações > Login
+    \$primary = '{{LOGIN_PRIMARY_COLOR}}';
+    \$bg      = '{{LOGIN_BG_COLOR}}';
+    \$text    = '{{LOGIN_TEXT_COLOR}}';
+
+    // Cor escura do primary para hover
+    \$r = max(0, hexdec(substr(\$primary, 1, 2)) - 38);
+    \$g = max(0, hexdec(substr(\$primary, 3, 2)) - 38);
+    \$b = max(0, hexdec(substr(\$primary, 5, 2)) - 38);
+    \$primaryDark = sprintf('#%02x%02x%02x', \$r, \$g, \$b);
+
+    // RGBA do primary para sombras
+    \$pr = hexdec(substr(\$primary, 1, 2));
+    \$pg = hexdec(substr(\$primary, 3, 2));
+    \$pb = hexdec(substr(\$primary, 5, 2));
+    \$primaryRgba = "rgba({\$pr}, {\$pg}, {\$pb}, 0.3)";
+
+    // Encoded primary para SVG inline
+    \$primaryEncoded = '%23' . substr(\$primary, 1);
+
+    echo '<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Fonte */
+        body.login,
+        .login form,
+        .login label,
+        .login input,
+        .login .message,
+        .login #nav,
+        .login #backtoblog {
+            font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
+
+        /* Fundo */
+        body.login {
+            background-color: ' . esc_attr(\$bg) . ' !important;
+        }
+
+        /* Logo */
         #login h1 a, .login h1 a {
-            background-image: url(' . esc_url($logo_url) . ') !important;
+            background-image: url(' . esc_url(\$logo_url) . ') !important;
             background-size: contain !important;
             background-repeat: no-repeat !important;
             background-position: center !important;
             width: 100% !important;
             height: 80px !important;
             margin-bottom: 20px !important;
+        }
+
+        /* Card do formulário */
+        .login form {
+            background: #fff !important;
+            border: 1px solid #e0e0e0 !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 8px rgba(17, 19, 23, 0.08) !important;
+        }
+
+        /* Labels */
+        .login label {
+            color: ' . esc_attr(\$text) . ' !important;
+            font-weight: 500 !important;
+        }
+
+        /* Inputs */
+        .login input[type="text"],
+        .login input[type="password"] {
+            border: 1px solid #d0d0d0 !important;
+            border-radius: 6px !important;
+            color: ' . esc_attr(\$text) . ' !important;
+        }
+        .login input[type="text"]:focus,
+        .login input[type="password"]:focus {
+            border-color: ' . esc_attr(\$primary) . ' !important;
+            box-shadow: 0 0 0 1px ' . esc_attr(\$primary) . ' !important;
+        }
+
+        /* Botão principal */
+        .wp-core-ui .button-primary {
+            background: ' . esc_attr(\$primary) . ' !important;
+            border-color: ' . esc_attr(\$primary) . ' !important;
+            color: ' . esc_attr(\$bg) . ' !important;
+            border-radius: 6px !important;
+            text-shadow: none !important;
+            box-shadow: 0 1px 3px ' . \$primaryRgba . ' !important;
+            transition: opacity 0.2s !important;
+        }
+        .wp-core-ui .button-primary:hover,
+        .wp-core-ui .button-primary:focus {
+            background: ' . esc_attr(\$primaryDark) . ' !important;
+            border-color: ' . esc_attr(\$primaryDark) . ' !important;
+            color: ' . esc_attr(\$bg) . ' !important;
+        }
+
+        /* Links */
+        .login #nav a,
+        .login #backtoblog a {
+            color: ' . esc_attr(\$text) . ' !important;
+            transition: color 0.2s !important;
+        }
+        .login #nav a:hover,
+        .login #backtoblog a:hover {
+            color: ' . esc_attr(\$primary) . ' !important;
+        }
+
+        /* Mensagens */
+        .login .message,
+        .login .success {
+            border-left-color: ' . esc_attr(\$primary) . ' !important;
+        }
+
+        /* Checkbox */
+        .login input[type="checkbox"]:checked::before {
+            content: url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\'><path d=\'M14.83 4.89l1.34.94-7.37 10.5-5.02-5.02 1.42-1.42 3.36 3.36 6.27-8.36z\' fill=\'' . \$primaryEncoded . '\'/></svg>") !important;
+        }
+        .login input[type="checkbox"]:focus {
+            border-color: ' . esc_attr(\$primary) . ' !important;
+            box-shadow: 0 0 0 1px ' . esc_attr(\$primary) . ' !important;
         }
     </style>';
 });
@@ -559,6 +670,21 @@ add_action('admin_head', function () {
     </style>';
 });
 MUPLUGIN
+
+    # Substituir placeholders de cores do login
+    local login_primary login_bg login_text
+    login_primary=$(docker compose exec -T mysql mysql -u root -proot wp_manager -N -e "SELECT value FROM settings WHERE \`key\`='login_primary_color'" 2>/dev/null | tr -d '\r\n')
+    login_bg=$(docker compose exec -T mysql mysql -u root -proot wp_manager -N -e "SELECT value FROM settings WHERE \`key\`='login_bg_color'" 2>/dev/null | tr -d '\r\n')
+    login_text=$(docker compose exec -T mysql mysql -u root -proot wp_manager -N -e "SELECT value FROM settings WHERE \`key\`='login_text_color'" 2>/dev/null | tr -d '\r\n')
+
+    # Usar defaults se não houver configuração
+    login_primary="${login_primary:-#204AE3}"
+    login_bg="${login_bg:-#f5f5f5}"
+    login_text="${login_text:-#111317}"
+
+    sed -i "s|{{LOGIN_PRIMARY_COLOR}}|${login_primary}|g" "${SITES_DIR}/${site_name}/wp-content/mu-plugins/wp-local-dev.php"
+    sed -i "s|{{LOGIN_BG_COLOR}}|${login_bg}|g" "${SITES_DIR}/${site_name}/wp-content/mu-plugins/wp-local-dev.php"
+    sed -i "s|{{LOGIN_TEXT_COLOR}}|${login_text}|g" "${SITES_DIR}/${site_name}/wp-content/mu-plugins/wp-local-dev.php"
 
     log_success "mu-plugins instalados."
 
