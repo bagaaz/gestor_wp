@@ -50,14 +50,15 @@ wp-docker-manager/
 │   │   ├── Models/
 │   │   │   ├── Site.php                        # Model principal (sites WordPress)
 │   │   │   ├── Backup.php                      # Registros de backup
-│   │   │   └── ActivityLog.php                 # Log de atividades
+│   │   │   ├── ActivityLog.php                 # Log de atividades
+│   │   │   └── PluginRegistry.php              # Registro de plugins disponíveis para instalação
 │   │   ├── Services/
 │   │   │   ├── DockerService.php               # Interação com Docker (status, mysql queries)
 │   │   │   ├── PhpConfigService.php            # Leitura/escrita do php.ini, reload, verificação
-│   │   │   └── WordPressService.php            # Lógica de criar/remover/clonar sites
+│   │   │   └── WordPressService.php            # Lógica de criar/remover/clonar sites + instalar plugins
 │   │   └── Providers/
 │   │       └── AppServiceProvider.php          # Singletons dos Services
-│   ├── database/migrations/                    # 3 migrations: sites, backups, activity_logs
+│   ├── database/migrations/                    # 5 migrations: sites, backups, activity_logs, settings, plugin_registry
 │   ├── resources/views/
 │   │   ├── layouts/app.blade.php               # Layout base (sidebar, Tailwind CDN, Alpine.js)
 │   │   ├── dashboard/index.blade.php           # Dashboard principal
@@ -72,6 +73,8 @@ wp-docker-manager/
 │   │       └── index.blade.php                 # Abas: Geral (credenciais), PHP (config), Logo
 │   │   └── components/
 │   │       └── confirm-modal.blade.php         # Modal de confirmação reutilizável (Alpine.js)
+├── docker/
+│   └── plugins/                                # ZIPs de plugins enviados via upload (gitignored)
 │   ├── routes/
 │   │   ├── web.php                             # Rotas web (dashboard + sites + logs + settings + export)
 │   │   └── api.php                             # API interna (POST/DELETE /api/sites)
@@ -154,8 +157,18 @@ Aplicado via mu-plugin `wp-local-dev.php` (e `wp-production-security.php` no exp
 - **Clone**: clonar site com banco e search-replace de URLs
 - **Backup**: backup completo (arquivos + banco)
 - **Logs** (`/logs`): duas abas — registro de atividades (banco) e log do Laravel (arquivo), com opção de limpar
-- **Configurações** (`/settings`): três abas — **Geral** (credenciais WP e MySQL, referência rápida), **PHP** (memory_limit, upload, execução, com verificação em tempo real), **Logo** (upload de logo do login)
+- **Configurações** (`/settings`): quatro abas — **Geral** (credenciais WP e MySQL, referência rápida), **PHP** (memory_limit, upload, execução, com verificação em tempo real), **Plugins** (registro de plugins para instalação na criação de sites), **Logo** (upload de logo do login)
 - **Export para Produção** (`/sites/{id}/export`): gera ZIP com domínio/banco substituídos
+
+### Registro de Plugins
+- Plugins podem ser cadastrados em **Configurações → Plugins** para ficarem disponíveis na criação de sites
+- Duas fontes: **WordPress.org** (por slug, ex: `contact-form-7`) ou **Upload** (arquivo ZIP, max 50MB)
+- ZIPs enviados são armazenados em `docker/plugins/` e instalados via WP-CLI com o path do arquivo
+- Plugins do repositório são instalados via `wp plugin install <slug> --activate`
+- Ao criar um site, se houver plugins cadastrados, uma tela intermediária é exibida para selecionar quais instalar
+- Se não houver nenhum plugin cadastrado, a criação segue direto sem tela extra
+- Dados do formulário de criação são mantidos na session durante o fluxo de seleção de plugins
+- Tabela `plugin_registry`: `id`, `name`, `slug` (unique), `source` (repository/upload), `file_path` (nullable), `description` (nullable)
 
 ### Export para Produção — O que faz
 O export (`ExportController`) gera um ZIP pronto para deploy:
@@ -234,8 +247,9 @@ O export (`ExportController`) gera um ZIP pronto para deploy:
 12. Copia logo de `docker/assets/login-logo.svg` para `wp-content/mu-plugins/assets/`
 13. Opcionalmente instala WooCommerce
 14. Gera config Nginx a partir do template e recarrega
-15. Registra site na API do painel Laravel
-16. Exibe resumo com URL, credenciais e banco
+15. Instala plugins selecionados do registro (se houver) via WP-CLI
+16. Registra site na API do painel Laravel
+17. Exibe resumo com URL, credenciais e banco
 
 ## Fluxo de Remoção de um Site
 

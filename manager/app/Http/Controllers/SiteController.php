@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PluginRegistry;
 use App\Models\Site;
 use App\Models\ActivityLog;
 use App\Services\DockerService;
@@ -35,7 +36,7 @@ class SiteController extends Controller
     }
 
     /**
-     * Criar novo site
+     * Criar novo site (step 1: valida e verifica se há plugins)
      */
     public function store(Request $request)
     {
@@ -47,20 +48,73 @@ class SiteController extends Controller
             'multisite' => ['nullable', 'boolean'],
         ]);
 
-        $result = $this->wordpress->createSite($validated);
-
         if ($request->expectsJson()) {
+            $result = $this->wordpress->createSite($validated);
             return response()->json($result, $result['success'] ? 201 : 422);
         }
 
-        if ($result['success']) {
-            return redirect()->route('sites.index')
-                ->with('success', "Site '{$validated['name']}' criado com sucesso!");
+        // Verificar se há plugins cadastrados
+        $plugins = PluginRegistry::orderBy('name')->get();
+        if ($plugins->isNotEmpty()) {
+            // Guardar dados na session e redirecionar para seleção de plugins
+            session(['site_creation_data' => $validated]);
+            return redirect()->route('sites.select-plugins');
         }
 
-        return back()->with('error', 'Erro ao criar site.')
-            ->with('error_detail', $result['output'])
-            ->withInput();
+        // Sem plugins, criar direto
+        return $this->performCreation($validated);
+    }
+
+    /**
+     * Tela de seleção de plugins (step 2)
+     */
+    public function selectPlugins()
+    {
+        $siteData = session('site_creation_data');
+        if (!$siteData) {
+            return redirect()->route('sites.create');
+        }
+
+        $plugins = PluginRegistry::orderBy('name')->get();
+        return view('sites.select-plugins', compact('plugins', 'siteData'));
+    }
+
+    /**
+     * Criar site com plugins selecionados (step 3)
+     */
+    public function storeWithPlugins(Request $request)
+    {
+        $siteData = session('site_creation_data');
+        if (!$siteData) {
+            return redirect()->route('sites.create');
+        }
+
+        $request->validate([
+            'plugins' => ['nullable', 'array'],
+            'plugins.*' => ['integer', 'exists:plugin_registry,id'],
+        ]);
+
+        $siteData['selected_plugins'] = $request->input('plugins', []);
+        session()->forget('site_creation_data');
+
+        return $this->performCreation($siteData);
+    }
+
+    /**
+     * Executa a criação do site
+     */
+    private function performCreation(array $params): \Illuminate\Http\RedirectResponse
+    {
+        $result = $this->wordpress->createSite($params);
+
+        if ($result['success']) {
+            return redirect()->route('sites.index')
+                ->with('success', "Site '{$params['name']}' criado com sucesso!");
+        }
+
+        return redirect()->route('sites.create')
+            ->with('error', 'Erro ao criar site.')
+            ->with('error_detail', $result['output']);
     }
 
     /**

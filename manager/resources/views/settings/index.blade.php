@@ -19,6 +19,11 @@
                       {{ $tab === 'php' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
                 <i class="fab fa-php mr-1"></i> PHP
             </a>
+            <a href="{{ route('settings.index', ['tab' => 'plugins']) }}"
+               class="px-4 py-2 rounded-md text-sm font-medium transition-colors
+                      {{ $tab === 'plugins' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                <i class="fas fa-puzzle-piece mr-1"></i> Plugins
+            </a>
             <a href="{{ route('settings.index', ['tab' => 'logo']) }}"
                class="px-4 py-2 rounded-md text-sm font-medium transition-colors
                       {{ $tab === 'logo' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
@@ -289,6 +294,176 @@
                         <li><i class="fas fa-check text-blue-500 mr-1"></i> O Nginx atualiza o <code class="bg-blue-100 px-1 rounded">client_max_body_size</code> para acompanhar o upload</li>
                         <li><i class="fas fa-check text-blue-500 mr-1"></i> PHP-FPM e Nginx são recarregados sem downtime</li>
                         <li><i class="fas fa-check text-blue-500 mr-1"></i> Os valores ativos são verificados em tempo real</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    {{-- ===== TAB: PLUGINS ===== --}}
+    @elseif($tab === 'plugins')
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Formulário de cadastro -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Cadastrar Plugin</h3>
+                        <p class="text-sm text-gray-500 mt-1">Adicione plugins para usar na criação de sites.</p>
+                    </div>
+
+                    <form action="{{ route('settings.plugins.store') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-4"
+                          x-data="{ source: '{{ old('source', 'repository') }}' }">
+                        @csrf
+
+                        <!-- Tipo de fonte -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fonte do plugin</label>
+                            <div class="flex gap-3">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="source" value="repository" x-model="source"
+                                           class="w-4 h-4 text-blue-600 focus:ring-blue-500">
+                                    <span class="text-sm text-gray-700">WordPress.org</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="source" value="upload" x-model="source"
+                                           class="w-4 h-4 text-blue-600 focus:ring-blue-500">
+                                    <span class="text-sm text-gray-700">Upload ZIP</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Nome -->
+                        <div>
+                            <label for="plugin_name" class="block text-sm font-medium text-gray-700 mb-1">
+                                Nome do plugin <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="name" id="plugin_name" required
+                                   value="{{ old('name') }}"
+                                   placeholder="Contact Form 7"
+                                   class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            @error('name')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Slug (repositório) -->
+                        <div x-show="source === 'repository'">
+                            <label for="plugin_slug" class="block text-sm font-medium text-gray-700 mb-1">
+                                Slug do plugin <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="slug" id="plugin_slug"
+                                   value="{{ old('slug') }}"
+                                   placeholder="contact-form-7"
+                                   class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <p class="mt-1 text-xs text-gray-400">Slug do wordpress.org (ex: contact-form-7)</p>
+                            @error('slug')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Upload ZIP -->
+                        <div x-show="source === 'upload'">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Arquivo ZIP <span class="text-red-500">*</span>
+                            </label>
+                            <label class="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                                <div class="text-center">
+                                    <i class="fas fa-cloud-upload-alt text-gray-400 text-lg mb-1"></i>
+                                    <p class="text-sm text-gray-600">Clique para selecionar o ZIP</p>
+                                    <p class="text-xs text-gray-400">Arquivo .zip (max 50MB)</p>
+                                </div>
+                                <input type="file" name="plugin_file" accept=".zip" class="hidden"
+                                       onchange="document.getElementById('plugin-filename').textContent = this.files[0]?.name || ''">
+                            </label>
+                            <p id="plugin-filename" class="mt-1 text-sm text-blue-600 font-medium"></p>
+                            @error('plugin_file')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Descrição -->
+                        <div>
+                            <label for="plugin_description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                            <input type="text" name="description" id="plugin_description"
+                                   value="{{ old('description') }}"
+                                   placeholder="Formulário de contato"
+                                   class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                        </div>
+
+                        <button type="submit" class="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-plus mr-1"></i> Cadastrar Plugin
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Lista de plugins cadastrados -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Plugins Cadastrados</h3>
+                        <p class="text-sm text-gray-500 mt-1">Estes plugins ficam disponíveis para seleção ao criar um novo site.</p>
+                    </div>
+
+                    @if($plugins->isEmpty())
+                        <div class="p-12 text-center">
+                            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-puzzle-piece text-2xl text-gray-400"></i>
+                            </div>
+                            <h4 class="text-sm font-medium text-gray-900 mb-1">Nenhum plugin cadastrado</h4>
+                            <p class="text-xs text-gray-500">Cadastre plugins para que eles apareçam na criação de sites.</p>
+                        </div>
+                    @else
+                        <div class="divide-y divide-gray-100">
+                            @foreach($plugins as $plugin)
+                                <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-lg flex items-center justify-center
+                                            {{ $plugin->source === 'repository' ? 'bg-blue-100' : 'bg-purple-100' }}">
+                                            <i class="fas {{ $plugin->source === 'repository' ? 'fa-globe text-blue-600' : 'fa-file-archive text-purple-600' }} text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-900">{{ $plugin->name }}</h4>
+                                            <div class="flex items-center gap-2 mt-0.5">
+                                                <code class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{{ $plugin->slug }}</code>
+                                                <span class="text-xs text-gray-400">
+                                                    {{ $plugin->source === 'repository' ? 'WordPress.org' : 'Upload' }}
+                                                </span>
+                                            </div>
+                                            @if($plugin->description)
+                                                <p class="text-xs text-gray-400 mt-0.5">{{ $plugin->description }}</p>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    <form id="delete-plugin-{{ $plugin->id }}" action="{{ route('settings.plugins.destroy', $plugin) }}" method="POST">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="button"
+                                                @click="$dispatch('confirm-action', {
+                                                    title: 'Remover plugin',
+                                                    message: 'Remover {{ $plugin->name }} do registro de plugins?',
+                                                    action: 'delete-plugin-{{ $plugin->id }}'
+                                                })"
+                                                class="text-red-400 hover:text-red-600 p-2" title="Remover">
+                                            <i class="fas fa-trash-alt text-sm"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Dica -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mt-6">
+                    <h4 class="text-sm font-semibold text-blue-800 flex items-center gap-2 mb-2">
+                        <i class="fas fa-lightbulb"></i> Como funciona
+                    </h4>
+                    <ul class="text-xs text-blue-700 space-y-2">
+                        <li><i class="fas fa-check text-blue-500 mr-1"></i> Plugins cadastrados aqui aparecem como opção ao criar um novo site</li>
+                        <li><i class="fas fa-check text-blue-500 mr-1"></i> <strong>WordPress.org</strong>: instala direto do repositório via WP-CLI</li>
+                        <li><i class="fas fa-check text-blue-500 mr-1"></i> <strong>Upload</strong>: instala a partir do arquivo ZIP enviado</li>
+                        <li><i class="fas fa-check text-blue-500 mr-1"></i> Todos são instalados e ativados automaticamente</li>
                     </ul>
                 </div>
             </div>

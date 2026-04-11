@@ -191,8 +191,10 @@ Acesse **http://manager.localhost** para:
 - Ver detalhes de cada site (plugins, temas, disco, banco)
 - **Logs**: visualizar registro de atividades e log do Laravel, com detalhes de erros
 - **Configurações PHP**: editar memory_limit, upload máximo, tempo de execução e mais — aplicados em tempo real com verificação
+- **Registro de Plugins**: cadastrar plugins (do WordPress.org ou upload de ZIP) para ficarem disponíveis na criação de sites
 - **Configurações**: gerenciar credenciais padrão e trocar a logo do login
 - **Exportar para Produção**: gera um ZIP pronto para deploy com domínio, credenciais de banco, wp-config.php otimizado, .htaccess com segurança e cache
+- Selecionar plugins do registro ao criar um site (tela de seleção aparece automaticamente)
 - Fazer backup e clonar sites
 - Links rápidos para phpMyAdmin e Mailpit
 
@@ -214,9 +216,10 @@ wp-docker-manager/
 │   │   ├── entrypoint-manager.sh   # Entrypoint (acesso Docker socket)
 │   │   ├── php.ini                 # Config PHP otimizada
 │   │   └── www.conf                # Config PHP-FPM
-│   └── mysql/
-│       ├── my.cnf                  # Config MySQL
-│       └── init/                   # Scripts de inicialização
+│   ├── mysql/
+│   │   ├── my.cnf                  # Config MySQL
+│   │   └── init/                   # Scripts de inicialização
+│   └── plugins/                    # ZIPs de plugins enviados via painel
 ├── manager/                        # Projeto Laravel (painel)
 │   ├── app/
 │   │   ├── Http/Controllers/
@@ -275,6 +278,20 @@ A logo da tela de login (`/wp-login.php`) é customizada sem nenhum plugin exter
 O arquivo `docker/assets/login-logo.svg` é copiado para `wp-content/mu-plugins/assets/` de cada site, e um arquivo PHP em `wp-content/mu-plugins/wp-local-dev.php` injeta CSS puro no hook `login_enqueue_scripts` para substituir a logo padrão do WordPress.
 
 Para trocar a logo: acesse **http://manager.localhost/settings** (aba Logo), faça upload da nova imagem (SVG, PNG, JPG ou WebP), e ela será atualizada em todos os sites de uma vez.
+
+## Registro de Plugins
+
+O painel permite cadastrar plugins para ficarem disponíveis ao criar novos sites. Acesse **http://manager.localhost/settings?tab=plugins** para gerenciar.
+
+**Duas formas de cadastrar:**
+- **WordPress.org**: informe o slug do plugin (ex: `contact-form-7`) — será instalado do repositório oficial via WP-CLI
+- **Upload ZIP**: envie o arquivo `.zip` do plugin (max 50MB) — armazenado em `docker/plugins/`
+
+**Fluxo de criação com plugins:**
+1. Preencha o formulário de criação do site normalmente
+2. Se houver plugins cadastrados, uma tela de seleção aparece para marcar quais instalar
+3. Se não houver nenhum plugin cadastrado, o site é criado diretamente (sem tela extra)
+4. Todos os plugins selecionados são instalados e ativados automaticamente via WP-CLI
 
 ## Dicas
 

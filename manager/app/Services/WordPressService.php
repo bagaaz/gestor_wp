@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\PluginRegistry;
 use App\Models\Site;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Log;
@@ -100,6 +101,11 @@ class WordPressService
         $success = str_contains($output ?? '', 'sucesso');
 
         if ($success) {
+            // Instalar plugins selecionados
+            if (!empty($params['selected_plugins'])) {
+                $this->installSelectedPlugins($name, $params['selected_plugins']);
+            }
+
             ActivityLog::create([
                 'action' => 'created',
                 'description' => "Site '{$name}' criado com WordPress {$version}",
@@ -180,6 +186,28 @@ class WordPressService
             'success' => $success,
             'output' => $output,
         ];
+    }
+
+    /**
+     * Instala plugins selecionados do registro em um site
+     */
+    private function installSelectedPlugins(string $siteName, array $pluginIds): void
+    {
+        $plugins = PluginRegistry::whereIn('id', $pluginIds)->get();
+
+        foreach ($plugins as $plugin) {
+            $source = $plugin->source === 'upload' && $plugin->file_path
+                ? $plugin->file_path
+                : $plugin->slug;
+
+            $result = $this->runWpCli($siteName, "plugin install {$source} --activate");
+
+            if ($result) {
+                Log::info("Plugin '{$plugin->name}' instalado no site '{$siteName}'");
+            } else {
+                Log::warning("Falha ao instalar plugin '{$plugin->name}' no site '{$siteName}'");
+            }
+        }
     }
 
     // ---- Helpers ----

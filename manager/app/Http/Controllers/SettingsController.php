@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PluginRegistry;
 use App\Models\Setting;
 use App\Services\PhpConfigService;
 use Illuminate\Http\Request;
@@ -25,7 +26,10 @@ class SettingsController extends Controller
         $phpValues = $this->phpConfig->readFromFile();
         $phpActiveValues = $this->phpConfig->readActiveValues();
 
-        return view('settings.index', compact('settings', 'hasLogo', 'phpDirectives', 'phpValues', 'phpActiveValues'));
+        // Plugins registrados
+        $plugins = PluginRegistry::orderBy('name')->get();
+
+        return view('settings.index', compact('settings', 'hasLogo', 'phpDirectives', 'phpValues', 'phpActiveValues', 'plugins'));
     }
 
     public function update(Request $request)
@@ -131,6 +135,67 @@ class SettingsController extends Controller
 
         return redirect()->route('settings.index')
             ->with('success', 'Logo atualizada em todos os sites!');
+    }
+
+    /**
+     * Cadastrar plugin no registro
+     */
+    public function storePlugin(Request $request)
+    {
+        $validated = $request->validate([
+            'source' => ['required', 'in:repository,upload'],
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => ['required_if:source,repository', 'nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'plugin_file' => ['required_if:source,upload', 'nullable', 'file', 'mimes:zip', 'max:51200'],
+        ]);
+
+        $slug = $validated['slug'];
+        $filePath = null;
+
+        if ($validated['source'] === 'upload' && $request->hasFile('plugin_file')) {
+            $file = $request->file('plugin_file');
+            $slug = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $pluginsDir = base_path('../docker/plugins');
+            if (!is_dir($pluginsDir)) {
+                mkdir($pluginsDir, 0755, true);
+            }
+            $file->move($pluginsDir, $file->getClientOriginalName());
+            $filePath = '/var/www/project/docker/plugins/' . $file->getClientOriginalName();
+        }
+
+        PluginRegistry::updateOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => $validated['name'],
+                'source' => $validated['source'],
+                'file_path' => $filePath,
+                'description' => $validated['description'] ?? null,
+            ]
+        );
+
+        return redirect()->route('settings.index', ['tab' => 'plugins'])
+            ->with('success', "Plugin '{$validated['name']}' cadastrado com sucesso!");
+    }
+
+    /**
+     * Remover plugin do registro
+     */
+    public function destroyPlugin(PluginRegistry $plugin)
+    {
+        // Remover arquivo ZIP se for upload
+        if ($plugin->source === 'upload' && $plugin->file_path) {
+            $localPath = base_path('../docker/plugins/' . basename($plugin->file_path));
+            if (file_exists($localPath)) {
+                unlink($localPath);
+            }
+        }
+
+        $name = $plugin->name;
+        $plugin->delete();
+
+        return redirect()->route('settings.index', ['tab' => 'plugins'])
+            ->with('success', "Plugin '{$name}' removido do registro.");
     }
 
     /**
