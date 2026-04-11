@@ -40,6 +40,9 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     bcmath \
     opcache
 
+# PHP config para uploads de plugins
+RUN echo "upload_max_filesize = 64M\npost_max_size = 64M\nmemory_limit = 256M" > /usr/local/etc/php/conf.d/uploads.ini
+
 # Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
