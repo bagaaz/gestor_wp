@@ -392,27 +392,27 @@ add_action('login_footer', function () {
 }, 1);
 
 add_action('login_enqueue_scripts', function () {
-    \$logo_url = content_url('mu-plugins/assets/login-logo.svg');
+    $logo_url = content_url('mu-plugins/assets/login-logo.svg');
 
     // Cores configuráveis — atualizadas pelo painel em Configurações > Login
-    \$primary = '{{LOGIN_PRIMARY_COLOR}}';
-    \$bg      = '{{LOGIN_BG_COLOR}}';
-    \$text    = '{{LOGIN_TEXT_COLOR}}';
+    $primary = '{{LOGIN_PRIMARY_COLOR}}';
+    $bg      = '{{LOGIN_BG_COLOR}}';
+    $text    = '{{LOGIN_TEXT_COLOR}}';
 
     // Cor escura do primary para hover
-    \$r = max(0, hexdec(substr(\$primary, 1, 2)) - 38);
-    \$g = max(0, hexdec(substr(\$primary, 3, 2)) - 38);
-    \$b = max(0, hexdec(substr(\$primary, 5, 2)) - 38);
-    \$primaryDark = sprintf('#%02x%02x%02x', \$r, \$g, \$b);
+    $r = max(0, hexdec(substr($primary, 1, 2)) - 38);
+    $g = max(0, hexdec(substr($primary, 3, 2)) - 38);
+    $b = max(0, hexdec(substr($primary, 5, 2)) - 38);
+    $primaryDark = sprintf('#%02x%02x%02x', $r, $g, $b);
 
     // RGBA do primary para sombras
-    \$pr = hexdec(substr(\$primary, 1, 2));
-    \$pg = hexdec(substr(\$primary, 3, 2));
-    \$pb = hexdec(substr(\$primary, 5, 2));
-    \$primaryRgba = "rgba({\$pr}, {\$pg}, {\$pb}, 0.3)";
+    $pr = hexdec(substr($primary, 1, 2));
+    $pg = hexdec(substr($primary, 3, 2));
+    $pb = hexdec(substr($primary, 5, 2));
+    $primaryRgba = "rgba({$pr}, {$pg}, {$pb}, 0.3)";
 
     // Encoded primary para SVG inline
-    \$primaryEncoded = '%23' . substr(\$primary, 1);
+    $primaryEncoded = '%23' . substr($primary, 1);
 
     echo '<link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -431,12 +431,12 @@ add_action('login_enqueue_scripts', function () {
 
         /* Fundo */
         body.login {
-            background-color: ' . esc_attr(\$bg) . ' !important;
+            background-color: ' . esc_attr($bg) . ' !important;
         }
 
         /* Logo */
         #login h1 a, .login h1 a {
-            background-image: url(' . esc_url(\$logo_url) . ') !important;
+            background-image: url(' . esc_url($logo_url) . ') !important;
             background-size: contain !important;
             background-repeat: no-repeat !important;
             background-position: center !important;
@@ -457,7 +457,7 @@ add_action('login_enqueue_scripts', function () {
 
         /* Labels */
         .login label {
-            color: ' . esc_attr(\$text) . ' !important;
+            color: ' . esc_attr($text) . ' !important;
             font-weight: 500 !important;
         }
 
@@ -466,55 +466,55 @@ add_action('login_enqueue_scripts', function () {
         .login input[type="password"] {
             border: 1px solid #d0d0d0 !important;
             border-radius: 6px !important;
-            color: ' . esc_attr(\$text) . ' !important;
+            color: ' . esc_attr($text) . ' !important;
         }
         .login input[type="text"]:focus,
         .login input[type="password"]:focus {
-            border-color: ' . esc_attr(\$primary) . ' !important;
-            box-shadow: 0 0 0 1px ' . esc_attr(\$primary) . ' !important;
+            border-color: ' . esc_attr($primary) . ' !important;
+            box-shadow: 0 0 0 1px ' . esc_attr($primary) . ' !important;
         }
 
         /* Botão principal */
         .wp-core-ui .button-primary {
-            background: ' . esc_attr(\$primary) . ' !important;
-            border-color: ' . esc_attr(\$primary) . ' !important;
-            color: ' . esc_attr(\$bg) . ' !important;
+            background: ' . esc_attr($primary) . ' !important;
+            border-color: ' . esc_attr($primary) . ' !important;
+            color: ' . esc_attr($bg) . ' !important;
             border-radius: 6px !important;
             text-shadow: none !important;
-            box-shadow: 0 1px 3px ' . \$primaryRgba . ' !important;
+            box-shadow: 0 1px 3px ' . $primaryRgba . ' !important;
             transition: opacity 0.2s !important;
         }
         .wp-core-ui .button-primary:hover,
         .wp-core-ui .button-primary:focus {
-            background: ' . esc_attr(\$primaryDark) . ' !important;
-            border-color: ' . esc_attr(\$primaryDark) . ' !important;
-            color: ' . esc_attr(\$bg) . ' !important;
+            background: ' . esc_attr($primaryDark) . ' !important;
+            border-color: ' . esc_attr($primaryDark) . ' !important;
+            color: ' . esc_attr($bg) . ' !important;
         }
 
         /* Links */
         .login #nav a,
         .login #backtoblog a {
-            color: ' . esc_attr(\$text) . ' !important;
+            color: ' . esc_attr($text) . ' !important;
             transition: color 0.2s !important;
         }
         .login #nav a:hover,
         .login #backtoblog a:hover {
-            color: ' . esc_attr(\$primary) . ' !important;
+            color: ' . esc_attr($primary) . ' !important;
         }
 
         /* Mensagens */
         .login .message,
         .login .success {
-            border-left-color: ' . esc_attr(\$primary) . ' !important;
+            border-left-color: ' . esc_attr($primary) . ' !important;
         }
 
         /* Checkbox */
         .login input[type="checkbox"]:checked::before {
-            content: url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\'><path d=\'M14.83 4.89l1.34.94-7.37 10.5-5.02-5.02 1.42-1.42 3.36 3.36 6.27-8.36z\' fill=\'' . \$primaryEncoded . '\'/></svg>") !important;
+            content: url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\'><path d=\'M14.83 4.89l1.34.94-7.37 10.5-5.02-5.02 1.42-1.42 3.36 3.36 6.27-8.36z\' fill=\'' . $primaryEncoded . '\'/></svg>") !important;
         }
         .login input[type="checkbox"]:focus {
-            border-color: ' . esc_attr(\$primary) . ' !important;
-            box-shadow: 0 0 0 1px ' . esc_attr(\$primary) . ' !important;
+            border-color: ' . esc_attr($primary) . ' !important;
+            box-shadow: 0 0 0 1px ' . esc_attr($primary) . ' !important;
         }
 
         /* Botão mostrar/ocultar senha */
@@ -539,7 +539,7 @@ add_action('login_enqueue_scripts', function () {
             gap: 8px !important;
         }
         .language-switcher .dashicons {
-            color: ' . esc_attr(\$text) . ' !important;
+            color: ' . esc_attr($text) . ' !important;
             opacity: 0.5 !important;
         }
         .language-switcher select {
@@ -547,20 +547,20 @@ add_action('login_enqueue_scripts', function () {
             border-radius: 6px !important;
             padding: 4px 8px !important;
             font-size: 13px !important;
-            color: ' . esc_attr(\$text) . ' !important;
+            color: ' . esc_attr($text) . ' !important;
             background: #fff !important;
             font-family: "Poppins", sans-serif !important;
         }
         .language-switcher select:focus {
-            border-color: ' . esc_attr(\$primary) . ' !important;
-            box-shadow: 0 0 0 1px ' . esc_attr(\$primary) . ' !important;
+            border-color: ' . esc_attr($primary) . ' !important;
+            box-shadow: 0 0 0 1px ' . esc_attr($primary) . ' !important;
             outline: none !important;
         }
         .language-switcher .button {
             background: transparent !important;
             border: 1px solid #d0d0d0 !important;
             border-radius: 6px !important;
-            color: ' . esc_attr(\$text) . ' !important;
+            color: ' . esc_attr($text) . ' !important;
             font-size: 13px !important;
             padding: 4px 12px !important;
             cursor: pointer !important;
@@ -569,19 +569,19 @@ add_action('login_enqueue_scripts', function () {
             text-shadow: none !important;
         }
         .language-switcher .button:hover {
-            border-color: ' . esc_attr(\$primary) . ' !important;
-            color: ' . esc_attr(\$primary) . ' !important;
+            border-color: ' . esc_attr($primary) . ' !important;
+            color: ' . esc_attr($primary) . ' !important;
         }
 
         /* Aviso Caps Lock */
         .caps-warning {
-            background: ' . esc_attr(\$bg) . ' !important;
+            background: ' . esc_attr($bg) . ' !important;
             border: 1px solid #d0d0d0 !important;
             border-radius: 6px !important;
             padding: 8px 12px !important;
             margin-top: 8px !important;
             font-size: 12px !important;
-            color: ' . esc_attr(\$text) . ' !important;
+            color: ' . esc_attr($text) . ' !important;
             font-family: "Poppins", sans-serif !important;
             font-weight: 500 !important;
         }
@@ -593,8 +593,8 @@ add_action('login_enqueue_scripts', function () {
             width: 16px !important;
             height: 16px !important;
             vertical-align: middle !important;
-            fill: ' . esc_attr(\$primary) . ' !important;
-            stroke: ' . esc_attr(\$primary) . ' !important;
+            fill: ' . esc_attr($primary) . ' !important;
+            stroke: ' . esc_attr($primary) . ' !important;
         }
         .caps-warning .caps-warning-text {
             vertical-align: middle !important;

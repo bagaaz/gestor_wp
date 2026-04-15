@@ -6,7 +6,10 @@
       "Bash(git rm:*)",
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
-      "Bash(git commit -a -m ':*)"
+      "Bash(git commit -a -m ':*)",
+      "Bash(grep -n '\\\\\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)",
+      "Bash(grep -n '\\\\\\\\\\\\\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)",
+      "Bash(grep -nF '\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)"
     ]
   }
 }
