@@ -12,7 +12,10 @@
       "Bash(grep -nP '\\\\\\\\\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)",
       "Bash(python3 -m json.tool)",
       "Bash(docker compose up:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(grep -n '\\\\\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)",
+      "Bash(grep -n '\\\\\\\\\\\\\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)",
+      "Bash(grep -nF '\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)"
     ]
   }
 }
