@@ -194,6 +194,7 @@ class WordPressService
     private function installSelectedPlugins(string $siteName, array $pluginIds): void
     {
         $plugins = PluginRegistry::whereIn('id', $pluginIds)->get();
+        $hasElementor = false;
 
         foreach ($plugins as $plugin) {
             $source = $plugin->source === 'upload' && $plugin->file_path
@@ -204,9 +205,23 @@ class WordPressService
 
             if ($result) {
                 Log::info("Plugin '{$plugin->name}' instalado no site '{$siteName}'");
+                if (str_contains($plugin->slug, 'elementor')) {
+                    $hasElementor = true;
+                }
             } else {
                 Log::warning("Falha ao instalar plugin '{$plugin->name}' no site '{$siteName}'");
             }
+        }
+
+        // Configurar Elementor: pular onboarding, habilitar SVG, desativar tracker
+        if ($hasElementor) {
+            $this->runWpCli($siteName, 'option update elementor_unfiltered_files_upload 1');
+            $this->runWpCli($siteName, 'option update elementor_onboarded 2.0.0');
+            $this->runWpCli($siteName, "option update elementor_onboarding_progress '{\"current_step\":0,\"current_step_index\":0,\"current_step_id\":null,\"completed_steps\":[],\"exit_type\":\"user_exit\",\"last_active_timestamp\":null,\"started_at\":null,\"starter_dismissed\":true}' --format=json");
+            $this->runWpCli($siteName, 'option update elementor_one_onboarding_completed 1');
+            $this->runWpCli($siteName, 'option update elementor_one_welcome_screen_completed 1');
+            $this->runWpCli($siteName, 'option update elementor_tracker_notice 1');
+            $this->runWpCli($siteName, 'transient delete elementor_activation_redirect');
         }
     }
 

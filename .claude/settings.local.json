@@ -6,7 +6,13 @@
       "Bash(git rm:*)",
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
-      "Bash(git commit -a -m ':*)"
+      "Bash(git commit -a -m ':*)",
+      "Bash(git push:*)",
+      "Bash(chmod 777 /home/gabriel/projetos/gestor_wp/docker/plugins)",
+      "Bash(grep -nP '\\\\\\\\\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)",
+      "Bash(python3 -m json.tool)",
+      "Bash(docker compose up:*)",
+      "Bash(docker exec:*)"
     ]
   }
 }
