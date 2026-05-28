@@ -274,3 +274,157 @@ O export (`ExportController`) gera um ZIP pronto para deploy:
 - Configurações PHP são editáveis via painel (`/settings?tab=php`). O `PhpConfigService` atualiza o `php.ini`, o `client_max_body_size` do Nginx, reinicia o container PHP e verifica os valores ativos em tempo real
 - O container PHP é reiniciado (não apenas reload) ao mudar `php.ini` porque o bind mount de arquivo único perde a referência quando o arquivo é reescrito (inode muda)
 - Modais de confirmação usam componente Alpine.js (`components/confirm-modal.blade.php`) em vez de `confirm()` nativo do navegador — dispatch evento `confirm-action` com título, mensagem, ID do form e variante (danger/warning)
+
+---
+
+## VPS Deployment (Ubuntu 24 LTS — sem Docker)
+
+Esta seção documenta o deploy em produção no VPS da **Dev Conecta**, onde o projeto roda **sem Docker**. PHP, MySQL e Nginx estão instalados nativamente.
+
+### Informações do Ambiente
+
+| Item | Valor |
+|------|-------|
+| OS | Ubuntu 24 LTS |
+| PHP | 8.4-FPM (`/usr/bin/php8.4`) |
+| MySQL | Nativo em `127.0.0.1:3306` |
+| Nginx | Nativo com sites-available/sites-enabled |
+| WP-CLI | `/usr/local/bin/wp` |
+| Projeto | `/var/www/html/gestor_wp` |
+| Sites WordPress | `/var/www/wordpress/` |
+| Backups | `/var/www/html/gestor_wp/backups/` |
+| PHP socket | `/run/php/php8.4-fpm.sock` |
+| PHP ini | `/etc/php/8.4/fpm/php.ini` |
+| Painel | `https://wp.devconecta.com.br` |
+| Sites WP | `https://{nome}.wp.devconecta.com.br` |
+
+### Credenciais e Segredos
+
+- **Arquivo de segredos**: `/etc/wp-manager/secrets.env` (modo `640`, dono `root:www-data`)
+  ```
+  MYSQL_ROOT_PASSWORD="..."
+  WP_DB_PASSWORD="..."
+  ```
+- **Usuário MySQL dos sites WP**: `wordpress`@`localhost` com senha `WP_DB_PASSWORD`
+- **Banco do painel Laravel**: `wp_manager`, usuário `root`
+- **Admin WordPress padrão**: `devconecta` / `Ga96911431@`
+
+### Serviços (systemctl)
+
+```bash
+systemctl status nginx php8.4-fpm mysql
+systemctl reload nginx          # recarrega configs sem derrubar conexões
+systemctl restart php8.4-fpm   # reiniciar PHP-FPM (necessário após alterar php.ini)
+```
+
+### Nginx
+
+- **Config do painel**: `/etc/nginx/sites-available/wp-manager.conf` → symlink em `sites-enabled/`
+- **Config de cada site WP**: `/etc/nginx/sites-available/site-{nome}.conf` → symlink em `sites-enabled/`
+- **Template gerador**: `docker/nginx/templates/wordpress.conf.template` (placeholder `{{SITE_NAME}}`)
+- Após criar/alterar configs, sempre: `nginx -t && systemctl reload nginx`
+
+### SSL
+
+- **Certificados Cloudflare Origin**: `/etc/ssl/cloudflare/devconecta.com.br.crt` e `.key`
+- Ciphers configurados (Mozilla Intermediate): `ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:...`
+- **Atenção**: Certificados Cloudflare Origin são confiáveis apenas através do proxy Cloudflare. Acesso direto ao IP do VPS sem passar pelo Cloudflare mostrará erro de certificado no browser.
+- Se ocorrer `SSL_ERROR_NO_CYPHER_OVERLAP`: verificar se o config do site foi criado em `sites-enabled/` e se o Nginx foi recarregado.
+
+### Sudoers (www-data)
+
+Para que o `wp-manager.sh` recarregue o Nginx automaticamente ao criar/remover sites, o arquivo `/etc/sudoers.d/wp-manager` precisa existir:
+
+```
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl reload nginx
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart nginx
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart php8.4-fpm
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start nginx php8.4-fpm mysql
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop nginx php8.4-fpm mysql
+```
+
+Criar com: `visudo -f /etc/sudoers.d/wp-manager` ou `cat > ... && chmod 440 ...`
+
+### Laravel — Configuração Crítica
+
+**`env()` NÃO funciona em services/controllers quando `config:cache` está ativo.** Use sempre `config('wp.*')`:
+
+```php
+// ERRADO — retorna null após config:cache
+$path = env('WP_SITES_PATH');
+
+// CORRETO
+$path = config('wp.sites_path');
+```
+
+As chaves WP estão definidas em `manager/config/wp.php`:
+- `config('wp.sites_path')` → `/var/www/wordpress`
+- `config('wp.project_root')` → `/var/www/html/gestor_wp`
+- `config('wp.base_domain')` → `wp.devconecta.com.br`
+- `config('wp.nginx_conf')` → `/etc/nginx/sites-available`
+- `config('wp.nginx_enabled')` → `/etc/nginx/sites-enabled`
+- `config('wp.backups_path')` → `/var/www/html/gestor_wp/backups`
+
+Após alterar `.env` no VPS: `cd manager && php artisan config:clear && php artisan config:cache`
+
+### WP-CLI no VPS
+
+- Caminho: `/usr/local/bin/wp`
+- Sempre usar `--allow-root` (WP-CLI roda como `www-data`)
+- Cache: `WP_CLI_CACHE_DIR=/tmp/wp-cli-cache` (exportado no `wp-manager.sh`)
+- PHP explícito: `WP_CLI_PHP=/usr/bin/php8.4` (exportado no `wp-manager.sh` para subprocessos)
+- Executar manualmente como www-data: `sudo -u www-data /usr/local/bin/wp --allow-root --path=/var/www/wordpress/{nome} <comando>`
+
+### wp-manager.sh no VPS
+
+O script roda como `www-data` via `shell_exec()` do Laravel. Variáveis de ambiente relevantes exportadas no início do script:
+```bash
+WP_CLI_CACHE_DIR=/tmp/wp-cli-cache
+WP_CLI_PHP=/usr/bin/php8.4
+```
+
+Testar manualmente: `sudo -u www-data bash /var/www/html/gestor_wp/wp-manager.sh status`
+
+### Deploy / Update do Projeto
+
+```bash
+cd /var/www/html/gestor_wp
+git pull
+cd manager
+php artisan config:clear && php artisan config:cache
+php artisan migrate --force   # se houver novas migrations
+```
+
+### Diagnóstico Rápido
+
+```bash
+# Ver log de erros do Laravel em tempo real
+tail -f /var/www/html/gestor_wp/manager/storage/logs/laravel.log
+
+# Ver log de erros do Nginx de um site
+tail -f /var/log/nginx/colmeia-error.log
+
+# Testar criação de site manualmente (com output em tempo real)
+sudo -u www-data bash /var/www/html/gestor_wp/wp-manager.sh create teste 2>&1
+
+# Verificar configs nginx carregadas
+nginx -T | grep server_name
+
+# Listar symlinks ativos
+ls -la /etc/nginx/sites-enabled/
+
+# Verificar permissões do arquivo de segredos
+ls -la /etc/wp-manager/secrets.env   # deve ser root:www-data 640
+```
+
+### Problemas Conhecidos e Correções Aplicadas
+
+| Problema | Causa | Correção |
+|----------|-------|----------|
+| `check_running` abortava com `set -e` mesmo com serviços rodando | `[[ cond ]] && exit 1` retorna exit 1 quando condição é falsa | Trocado para `if [[ cond ]]; then exit 1; fi` |
+| `env('WP_*')` retornava null | `config:cache` ativo ignora `env()` em classes PHP | Criado `config/wp.php`; usar `config('wp.*')` |
+| `SiteController::destroy()` não removia arquivos | Caminho hardcoded `/var/www/sites/` em vez do config | Trocado para `config('wp.sites_path')` |
+| `sudo systemctl reload nginx` abortava criação | www-data sem permissão sudo | Tornado não-fatal (`\|\| log_warn`); fix definitivo: sudoers |
+| `wp rewrite structure --hard` falhava | Tentativa de `exec()` para escrever `.htaccess` sem permissão (Nginx não usa .htaccess) | Removido `--hard`; adicionado `\|\| true` |
+| Warning de cache WP-CLI | `www-data` não pode escrever em `/var/www/.wp-cli/` | `WP_CLI_CACHE_DIR=/tmp/wp-cli-cache` exportado globalmente |
+| Erro `sh: 1: : Permission denied` em WP-CLI | WP-CLI não encontrava PHP correto ao spawnar subprocessos | `WP_CLI_PHP=/usr/bin/php8.4` exportado globalmente |
