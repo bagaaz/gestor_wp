@@ -7,6 +7,7 @@
 # ===========================================================
 
 set -e
+set -E
 
 # Cores
 RED='\033[0;31m'
@@ -17,6 +18,8 @@ CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
 NC='\033[0m'
 BOLD='\033[1m'
+
+trap 'echo -e "\n${RED}[ERRO]${NC} Abortou na linha ${BOLD}${LINENO}${NC}: ${BASH_COMMAND}"' ERR
 
 # Diretórios
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -40,6 +43,10 @@ MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:?Defina MYSQL_ROOT_PASSWORD em ${SECR
 MYSQL_USER="wordpress"
 MYSQL_PASSWORD="${WP_DB_PASSWORD:?Defina WP_DB_PASSWORD em ${SECRETS_FILE}}"
 MYSQL_HOST="127.0.0.1"
+
+# Cache do WP-CLI em diretório acessível por www-data
+export WP_CLI_CACHE_DIR=/tmp/wp-cli-cache
+mkdir -p "${WP_CLI_CACHE_DIR}" 2>/dev/null || true
 
 # Defaults
 DEFAULT_WP_VERSION="latest"
