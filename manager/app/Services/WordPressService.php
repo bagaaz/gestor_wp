@@ -13,11 +13,16 @@ class WordPressService
     private string $nginxConfPath;
     private string $projectRoot;
 
+    private string $nginxEnabledPath;
+    private string $baseDomain;
+
     public function __construct()
     {
-        $this->sitesPath = '/var/www/sites';
-        $this->nginxConfPath = '/etc/nginx/conf.d';
-        $this->projectRoot = '/var/www/project';
+        $this->sitesPath = env('WP_SITES_PATH', '/var/www/wordpress');
+        $this->nginxConfPath = env('WP_NGINX_CONF_PATH', '/etc/nginx/sites-available');
+        $this->nginxEnabledPath = env('WP_NGINX_ENABLED_PATH', '/etc/nginx/sites-enabled');
+        $this->projectRoot = env('WP_PROJECT_ROOT', '/var/www/gestor_wp');
+        $this->baseDomain = env('WP_BASE_DOMAIN', 'wp.devconecta.com.br');
     }
 
     /**
@@ -37,7 +42,7 @@ class WordPressService
             $site = Site::firstOrCreate(
                 ['name' => $name],
                 [
-                    'url' => "http://{$name}.localhost",
+                    'url' => "https://{$name}.{$this->baseDomain}",
                     'db_name' => 'wp_' . str_replace(['-', '.'], '_', $name),
                     'status' => 'active',
                 ]
@@ -283,14 +288,16 @@ class WordPressService
 
     private function runWpCli(string $site, string $command): ?string
     {
-        $cmd = "docker exec wp-php wp --allow-root --path=/var/www/sites/{$site} {$command} 2>/dev/null";
+        $path = $this->sitesPath . '/' . $site;
+        $cmd = "/usr/local/bin/wp --allow-root --path={$path} {$command} 2>/dev/null";
         $result = trim(shell_exec($cmd) ?? '');
         return $result ?: null;
     }
 
     private function runWpCliWithStderr(string $site, string $command): string
     {
-        $cmd = "docker exec wp-php wp --allow-root --path=/var/www/sites/{$site} {$command} 2>&1";
+        $path = $this->sitesPath . '/' . $site;
+        $cmd = "/usr/local/bin/wp --allow-root --path={$path} {$command} 2>&1";
         return trim(shell_exec($cmd) ?? '');
     }
 

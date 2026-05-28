@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ===========================================================
-#  WP Docker Manager - Gerenciador de sites WordPress locais
+#  WP Manager - Gerenciador de sites WordPress
 #  Autor: Gabriel @ Impacta Web
-#  Versão: 1.0.0
+#  Versão: 2.0.0 (VPS - sem Docker)
 # ===========================================================
 
 set -e
@@ -15,22 +15,26 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
-NC='\033[0m' # Sem cor
+NC='\033[0m'
 BOLD='\033[1m'
 
 # Diretórios
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SITES_DIR="${PROJECT_DIR}/sites"
-NGINX_CONF_DIR="${PROJECT_DIR}/docker/nginx/conf.d"
+SITES_DIR="/var/www/wordpress"
+NGINX_CONF_DIR="/etc/nginx/sites-available"
+NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
 NGINX_TEMPLATE="${PROJECT_DIR}/docker/nginx/templates/wordpress.conf.template"
 BACKUPS_DIR="${PROJECT_DIR}/backups"
-SCRIPTS_DIR="${PROJECT_DIR}/scripts"
+
+# Domínios
+BASE_DOMAIN="wp.devconecta.com.br"
+MANAGER_URL="https://wp.devconecta.com.br"
 
 # MySQL
-MYSQL_ROOT_PASSWORD="root"
+MYSQL_ROOT_PASSWORD="Ga96911431@"
 MYSQL_USER="wordpress"
 MYSQL_PASSWORD="wordpress"
-MYSQL_HOST="mysql"
+MYSQL_HOST="127.0.0.1"
 
 # Defaults
 DEFAULT_WP_VERSION="latest"
@@ -46,8 +50,8 @@ DEFAULT_ADMIN_EMAIL="admin@localhost.test"
 print_banner() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════╗"
-    echo "║          WP Docker Manager v1.0.0               ║"
-    echo "║       Gerenciador de WordPress Local             ║"
+    echo "║            WP Manager v2.0.0 (VPS)             ║"
+    echo "║       Gerenciador de WordPress                   ║"
     echo "╚══════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
@@ -82,20 +86,24 @@ confirm() {
 }
 
 check_running() {
-    if ! docker compose ps --status running 2>/dev/null | grep -q "wp-nginx"; then
-        log_error "Os containers não estão rodando. Execute primeiro: ./wp-manager.sh up"
-        exit 1
-    fi
+    local failed=false
+    for svc in nginx php8.4-fpm mysql; do
+        if ! systemctl is-active --quiet "$svc" 2>/dev/null; then
+            log_error "Serviço '$svc' não está rodando. Execute: systemctl start $svc"
+            failed=true
+        fi
+    done
+    [[ "$failed" == true ]] && exit 1
 }
 
 run_mysql() {
-    docker compose exec -T mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "$1" 2>/dev/null
+    MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql -uroot -h"${MYSQL_HOST}" --batch -e "$1" 2>/dev/null
 }
 
 run_wpcli() {
     local site_name="$1"
     shift
-    docker exec -u www-data -w "/var/www/sites/${site_name}" wp-php wp "$@"
+    /usr/local/bin/wp --path="${SITES_DIR}/${site_name}" --allow-root "$@"
 }
 
 get_db_name() {
@@ -116,7 +124,6 @@ cmd_create() {
     local multisite=false
     local install_woocommerce=false
 
-    # Parse argumentos
     while [[ $# -gt 0 ]]; do
         case $1 in
             --name|-n)       site_name="$2"; shift 2;;
@@ -136,7 +143,6 @@ cmd_create() {
         read -p "$(echo -e "${CYAN}Nome do site (ex: meusite):${NC} ")" site_name
     fi
 
-    # Validar nome
     if [[ ! "$site_name" =~ ^[a-z0-9][a-z0-9-]*[a-z0-9]$ ]] && [[ ! "$site_name" =~ ^[a-z0-9]$ ]]; then
         log_error "Nome inválido. Use apenas letras minúsculas, números e hífens."
         exit 1
@@ -149,7 +155,7 @@ cmd_create() {
 
     site_title="${site_title:-${site_name}}"
     local db_name=$(get_db_name "$site_name")
-    local site_url="http://${site_name}.localhost"
+    local site_url="https://${site_name}.${BASE_DOMAIN}"
 
     echo ""
     log_info "Criando WordPress: ${BOLD}${site_name}${NC}"
@@ -165,7 +171,8 @@ cmd_create() {
     # 1. Criar banco de dados
     log_info "Criando banco de dados..."
     run_mysql "CREATE DATABASE IF NOT EXISTS \`${db_name}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-    run_mysql "GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${MYSQL_USER}'@'%'; FLUSH PRIVILEGES;"
+    run_mysql "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';"
+    run_mysql "GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${MYSQL_USER}'@'localhost'; FLUSH PRIVILEGES;"
     log_success "Banco '${db_name}' criado."
 
     # 2. Baixar WordPress
@@ -195,15 +202,15 @@ define('WP_DEBUG', true);
 define('WP_DEBUG_LOG', true);
 define('WP_DEBUG_DISPLAY', true);
 define('SCRIPT_DEBUG', true);
-define('WP_ENVIRONMENT_TYPE', 'local');
+define('WP_ENVIRONMENT_TYPE', 'development');
 
 // Desabilitar atualizações automáticas
 define('AUTOMATIC_UPDATER_DISABLED', true);
 define('WP_AUTO_UPDATE_CORE', false);
 
-// Email via Mailpit
-define('SMTP_HOST', 'mailpit');
-define('SMTP_PORT', 1025);
+// Email SMTP (ajuste conforme seu servidor)
+define('SMTP_HOST', 'localhost');
+define('SMTP_PORT', 25);
 
 // Upload de arquivos grandes
 define('WP_MEMORY_LIMIT', '512M');
@@ -246,19 +253,12 @@ PHP
     # 5. Configurações pós-instalação
     log_info "Aplicando configurações pt-BR e otimizações..."
 
-    # Permalinks
     run_wpcli "$site_name" rewrite structure '/%postname%/' --hard
-
-    # Timezone e formato de data brasileiro
     run_wpcli "$site_name" option update timezone_string 'America/Sao_Paulo'
     run_wpcli "$site_name" option update date_format 'd/m/Y'
     run_wpcli "$site_name" option update time_format 'H:i'
     run_wpcli "$site_name" option update start_of_week '0'
-
-    # Upload máximo
     run_wpcli "$site_name" option update upload_max_filesize '256M'
-
-    # Desabilitar comentários por padrão
     run_wpcli "$site_name" option update default_comment_status 'closed'
     run_wpcli "$site_name" option update default_ping_status 'closed'
     run_wpcli "$site_name" option update default_pingback_flag '0'
@@ -273,25 +273,21 @@ PHP
     # 6. Remover TODO conteúdo padrão
     log_info "Removendo conteúdo padrão (posts, páginas, comentários)..."
 
-    # Remover TODOS os posts (Hello World, etc)
     local post_ids=$(run_wpcli "$site_name" post list --post_type=post --format=ids 2>/dev/null || echo "")
     if [[ -n "$post_ids" ]]; then
         run_wpcli "$site_name" post delete $post_ids --force 2>/dev/null || true
     fi
 
-    # Remover TODAS as páginas de exemplo (Sample Page, Privacy Policy, etc)
     local page_ids=$(run_wpcli "$site_name" post list --post_type=page --format=ids 2>/dev/null || echo "")
     if [[ -n "$page_ids" ]]; then
         run_wpcli "$site_name" post delete $page_ids --force 2>/dev/null || true
     fi
 
-    # Remover todos os comentários padrão
     local comment_ids=$(run_wpcli "$site_name" comment list --format=ids 2>/dev/null || echo "")
     if [[ -n "$comment_ids" ]]; then
         run_wpcli "$site_name" comment delete $comment_ids --force 2>/dev/null || true
     fi
 
-    # Limpar lixeira
     run_wpcli "$site_name" post delete $(run_wpcli "$site_name" post list --post_status=trash --format=ids 2>/dev/null) --force 2>/dev/null || true
 
     log_success "Conteúdo padrão removido."
@@ -301,7 +297,6 @@ PHP
 
     run_wpcli "$site_name" theme install hello-elementor --activate
 
-    # Remover todos os temas padrão (twentytwenty*, etc)
     local all_themes=$(run_wpcli "$site_name" theme list --status=inactive --field=name 2>/dev/null || echo "")
     for theme in $all_themes; do
         run_wpcli "$site_name" theme delete "$theme" 2>/dev/null || true
@@ -309,7 +304,7 @@ PHP
 
     log_success "Hello Elementor ativado, temas padrão removidos."
 
-    # 8. Desativar e remover plugins padrão desnecessários
+    # 8. Remover plugins padrão
     log_info "Removendo plugins padrão..."
     run_wpcli "$site_name" plugin deactivate hello --quiet 2>/dev/null || true
     run_wpcli "$site_name" plugin delete hello 2>/dev/null || true
@@ -317,12 +312,11 @@ PHP
     run_wpcli "$site_name" plugin delete akismet 2>/dev/null || true
     log_success "Plugins padrão removidos."
 
-    # 9. Instalar mu-plugins (SVG/WebP, Mailpit, Login Logo, Segurança)
+    # 9. Instalar mu-plugins
     log_info "Instalando mu-plugins..."
     mkdir -p "${SITES_DIR}/${site_name}/wp-content/mu-plugins"
     mkdir -p "${SITES_DIR}/${site_name}/wp-content/mu-plugins/assets"
 
-    # Copiar logo para assets do mu-plugin
     if [[ -f "${PROJECT_DIR}/docker/assets/login-logo.svg" ]]; then
         cp "${PROJECT_DIR}/docker/assets/login-logo.svg" "${SITES_DIR}/${site_name}/wp-content/mu-plugins/assets/login-logo.svg"
     fi
@@ -331,7 +325,7 @@ PHP
 <?php
 /**
  * Plugin: WP Local Dev Helpers
- * SVG/WebP, SMTP Mailpit, Login Logo, Segurança, Badge DEV
+ * SVG/WebP, SMTP, Login Logo, Segurança, Badge DEV
  */
 
 // ==============================
@@ -365,12 +359,12 @@ add_action('admin_head', function () {
 });
 
 // ==============================
-// Configurar SMTP via Mailpit
+// Configurar SMTP
 // ==============================
 add_action('phpmailer_init', function ($phpmailer) {
     $phpmailer->isSMTP();
-    $phpmailer->Host       = defined('SMTP_HOST') ? SMTP_HOST : 'mailpit';
-    $phpmailer->Port       = defined('SMTP_PORT') ? SMTP_PORT : 1025;
+    $phpmailer->Host       = defined('SMTP_HOST') ? SMTP_HOST : 'localhost';
+    $phpmailer->Port       = defined('SMTP_PORT') ? SMTP_PORT : 25;
     $phpmailer->SMTPAuth   = false;
     $phpmailer->SMTPSecure = false;
     $phpmailer->SMTPAutoTLS = false;
@@ -380,13 +374,12 @@ add_action('phpmailer_init', function ($phpmailer) {
 // Aumentar limite de upload
 // ==============================
 add_filter('upload_size_limit', function () {
-    return 256 * 1024 * 1024; // 256MB
+    return 256 * 1024 * 1024;
 });
 
 // ==============================
 // Logo customizada na tela de login
 // ==============================
-// Remover o script nativo de caps lock do WP (substituído pelo nosso)
 add_action('login_footer', function () {
     wp_dequeue_script('user-profile');
     wp_deregister_script('user-profile');
@@ -395,31 +388,26 @@ add_action('login_footer', function () {
 add_action('login_enqueue_scripts', function () {
     $logo_url = content_url('mu-plugins/assets/login-logo.svg');
 
-    // Cores configuráveis — atualizadas pelo painel em Configurações > Login
     $primary = '{{LOGIN_PRIMARY_COLOR}}';
     $bg      = '{{LOGIN_BG_COLOR}}';
     $text    = '{{LOGIN_TEXT_COLOR}}';
 
-    // Cor escura do primary para hover
     $r = max(0, hexdec(substr($primary, 1, 2)) - 38);
     $g = max(0, hexdec(substr($primary, 3, 2)) - 38);
     $b = max(0, hexdec(substr($primary, 5, 2)) - 38);
     $primaryDark = sprintf('#%02x%02x%02x', $r, $g, $b);
 
-    // RGBA do primary para sombras
     $pr = hexdec(substr($primary, 1, 2));
     $pg = hexdec(substr($primary, 3, 2));
     $pb = hexdec(substr($primary, 5, 2));
     $primaryRgba = "rgba({$pr}, {$pg}, {$pb}, 0.3)";
 
-    // Encoded primary para SVG inline
     $primaryEncoded = '%23' . substr($primary, 1);
 
     echo '<link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        /* Fonte */
         body.login,
         .login form,
         .login label,
@@ -430,12 +418,10 @@ add_action('login_enqueue_scripts', function () {
             font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }
 
-        /* Fundo */
         body.login {
             background-color: ' . esc_attr($bg) . ' !important;
         }
 
-        /* Logo */
         #login h1 a, .login h1 a {
             background-image: url(' . esc_url($logo_url) . ') !important;
             background-size: contain !important;
@@ -446,7 +432,6 @@ add_action('login_enqueue_scripts', function () {
             margin-bottom: 20px !important;
         }
 
-        /* Card do formulário */
         .login form#loginform,
         .login form#lostpasswordform,
         .login form#registerform {
@@ -456,13 +441,11 @@ add_action('login_enqueue_scripts', function () {
             box-shadow: 0 2px 8px rgba(17, 19, 23, 0.08) !important;
         }
 
-        /* Labels */
         .login label {
             color: ' . esc_attr($text) . ' !important;
             font-weight: 500 !important;
         }
 
-        /* Inputs */
         .login input[type="text"],
         .login input[type="password"] {
             border: 1px solid #d0d0d0 !important;
@@ -475,7 +458,6 @@ add_action('login_enqueue_scripts', function () {
             box-shadow: 0 0 0 1px ' . esc_attr($primary) . ' !important;
         }
 
-        /* Botão principal */
         .wp-core-ui .button-primary {
             background: ' . esc_attr($primary) . ' !important;
             border-color: ' . esc_attr($primary) . ' !important;
@@ -492,7 +474,6 @@ add_action('login_enqueue_scripts', function () {
             color: ' . esc_attr($bg) . ' !important;
         }
 
-        /* Links */
         .login #nav a,
         .login #backtoblog a {
             color: ' . esc_attr($text) . ' !important;
@@ -503,13 +484,11 @@ add_action('login_enqueue_scripts', function () {
             color: ' . esc_attr($primary) . ' !important;
         }
 
-        /* Mensagens */
         .login .message,
         .login .success {
             border-left-color: ' . esc_attr($primary) . ' !important;
         }
 
-        /* Checkbox */
         .login input[type="checkbox"]:checked::before {
             content: url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\'><path d=\'M14.83 4.89l1.34.94-7.37 10.5-5.02-5.02 1.42-1.42 3.36 3.36 6.27-8.36z\' fill=\'' . $primaryEncoded . '\'/></svg>") !important;
         }
@@ -518,14 +497,12 @@ add_action('login_enqueue_scripts', function () {
             box-shadow: 0 0 0 1px ' . esc_attr($primary) . ' !important;
         }
 
-        /* Botão mostrar/ocultar senha */
         .login .wp-hide-pw:focus {
             outline: none !important;
             box-shadow: none !important;
             border: none !important;
         }
 
-        /* Seletor de idioma */
         .language-switcher {
             background: transparent !important;
             box-shadow: none !important;
@@ -574,7 +551,6 @@ add_action('login_enqueue_scripts', function () {
             color: ' . esc_attr($primary) . ' !important;
         }
 
-        /* Aviso Caps Lock */
         .caps-warning {
             background: ' . esc_attr($bg) . ' !important;
             border: 1px solid #d0d0d0 !important;
@@ -609,7 +585,6 @@ add_action('login_enqueue_scripts', function () {
 
         var warning = document.getElementById("caps-warning");
 
-        // Se o WP ainda não criou o elemento, criar manualmente via DOM
         if (!warning) {
             var wrapper = passInput.closest("div");
             if (!wrapper) return;
@@ -654,7 +629,6 @@ add_action('login_enqueue_scripts', function () {
     </script>';
 });
 
-// Link da logo aponta para o próprio site
 add_filter('login_headerurl', function () {
     return home_url();
 });
@@ -667,26 +641,21 @@ add_filter('login_headertext', function () {
 // SEGURANÇA - Hardening WordPress
 // ==============================
 
-// Desabilitar XML-RPC completamente
 add_filter('xmlrpc_enabled', '__return_false');
 add_filter('wp_headers', function ($headers) {
     unset($headers['X-Pingback']);
     return $headers;
 });
 
-// Bloquear acesso ao xmlrpc.php
 add_action('init', function () {
     if (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST) {
         wp_die('XML-RPC desabilitado.', 'Acesso negado', ['response' => 403]);
     }
 });
 
-// Desabilitar REST API para usuários não logados (endpoints sensíveis)
 add_filter('rest_authentication_errors', function ($result) {
     if (!is_user_logged_in()) {
-        $allowed = ['/wp/v2/pages', '/wp/v2/posts', '/wp/v2/categories', '/wp/v2/tags', '/wp/v2/media'];
         $path = $_SERVER['REQUEST_URI'] ?? '';
-        // Bloquear /wp/v2/users para não logados (evita enumeration)
         if (strpos($path, '/wp/v2/users') !== false) {
             return new WP_Error('rest_forbidden', 'Acesso negado.', ['status' => 403]);
         }
@@ -694,7 +663,6 @@ add_filter('rest_authentication_errors', function ($result) {
     return $result;
 });
 
-// Desabilitar enumeração de usuários via ?author=N
 add_action('template_redirect', function () {
     if (is_author() && !is_user_logged_in()) {
         wp_redirect(home_url(), 301);
@@ -702,11 +670,8 @@ add_action('template_redirect', function () {
     }
 });
 
-// Remover versão do WordPress do head e feeds
 remove_action('wp_head', 'wp_generator');
 add_filter('the_generator', '__return_empty_string');
-
-// Remover headers desnecessários
 remove_action('wp_head', 'wlwmanifest_link');
 remove_action('wp_head', 'rsd_link');
 remove_action('wp_head', 'wp_shortlink_wp_head');
@@ -714,7 +679,6 @@ remove_action('wp_head', 'rest_output_link_wp_head');
 remove_action('wp_head', 'wp_oembed_add_discovery_links');
 remove_action('wp_head', 'wp_resource_hints', 2);
 
-// Desabilitar emojis do WordPress (melhora performance + menos surface)
 add_action('init', function () {
     remove_action('wp_head', 'print_emoji_detection_script', 7);
     remove_action('admin_print_scripts', 'print_emoji_detection_script');
@@ -725,7 +689,6 @@ add_action('init', function () {
     remove_filter('wp_mail', 'wp_staticize_emoji_for_email');
 });
 
-// Limitar tentativas de login (proteção brute-force básica)
 add_filter('authenticate', function ($user, $username, $password) {
     if (empty($username) || empty($password)) return $user;
 
@@ -748,29 +711,22 @@ add_action('wp_login_failed', function () {
     set_transient($transient_key, $attempts + 1, 15 * MINUTE_IN_SECONDS);
 });
 
-// Resetar contador ao logar com sucesso
 add_action('wp_login', function () {
     $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     delete_transient('login_attempts_' . md5($ip));
 });
 
-// Desabilitar pingbacks
 add_filter('pings_open', '__return_false', 20, 2);
-
-// Desabilitar trackbacks
 add_filter('pre_option_default_ping_status', '__return_zero');
 
-// Bloquear spam comments com links
 add_filter('preprocess_comment', function ($commentdata) {
     $content = $commentdata['comment_content'] ?? '';
-    // Bloquear se tiver mais de 2 links
     if (preg_match_all('/https?:\/\//', $content) > 2) {
         wp_die('Comentário bloqueado: muitos links detectados.', 'Spam detectado', ['response' => 403]);
     }
     return $commentdata;
 });
 
-// Headers de segurança
 add_action('send_headers', function () {
     if (!is_admin()) {
         header('X-Content-Type-Options: nosniff');
@@ -780,25 +736,21 @@ add_action('send_headers', function () {
     }
 });
 
-// Desabilitar edição de arquivos pelo admin (segurança)
 if (!defined('DISALLOW_FILE_EDIT')) {
     define('DISALLOW_FILE_EDIT', true);
 }
 
-// ==============================
-// Desabilitar update nags no admin
-// ==============================
 add_action('admin_init', function () {
     remove_action('admin_notices', 'update_nag', 3);
 });
 
 // ==============================
-// Badge LOCAL DEV na admin bar
+// Badge DEV na admin bar
 // ==============================
 add_action('admin_bar_menu', function ($wp_admin_bar) {
     $wp_admin_bar->add_node([
         'id'    => 'local-env',
-        'title' => '🔧 LOCAL DEV',
+        'title' => '🔧 DEV',
         'meta'  => ['class' => 'local-env-badge'],
     ]);
 }, 999);
@@ -816,11 +768,10 @@ MUPLUGIN
 
     # Substituir placeholders de cores do login
     local login_primary login_bg login_text
-    login_primary=$(docker compose exec -T mysql mysql -u root -proot wp_manager -N -e "SELECT value FROM settings WHERE \`key\`='login_primary_color'" 2>/dev/null | tr -d '\r\n')
-    login_bg=$(docker compose exec -T mysql mysql -u root -proot wp_manager -N -e "SELECT value FROM settings WHERE \`key\`='login_bg_color'" 2>/dev/null | tr -d '\r\n')
-    login_text=$(docker compose exec -T mysql mysql -u root -proot wp_manager -N -e "SELECT value FROM settings WHERE \`key\`='login_text_color'" 2>/dev/null | tr -d '\r\n')
+    login_primary=$(MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql -uroot -h"${MYSQL_HOST}" wp_manager -N -e "SELECT value FROM settings WHERE \`key\`='login_primary_color'" 2>/dev/null | tr -d '\r\n')
+    login_bg=$(MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql -uroot -h"${MYSQL_HOST}" wp_manager -N -e "SELECT value FROM settings WHERE \`key\`='login_bg_color'" 2>/dev/null | tr -d '\r\n')
+    login_text=$(MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql -uroot -h"${MYSQL_HOST}" wp_manager -N -e "SELECT value FROM settings WHERE \`key\`='login_text_color'" 2>/dev/null | tr -d '\r\n')
 
-    # Usar defaults se não houver configuração
     login_primary="${login_primary:-#204AE3}"
     login_bg="${login_bg:-#f5f5f5}"
     login_text="${login_text:-#111317}"
@@ -841,22 +792,23 @@ MUPLUGIN
     # 11. Configurar Nginx
     log_info "Configurando Nginx..."
     sed "s/{{SITE_NAME}}/${site_name}/g" "${NGINX_TEMPLATE}" > "${NGINX_CONF_DIR}/site-${site_name}.conf"
-    docker compose exec nginx nginx -s reload 2>/dev/null || docker compose restart nginx
+    ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
+    systemctl reload nginx
     log_success "Nginx configurado."
 
     # 12. Permissões
     log_info "Ajustando permissões..."
-    chmod -R 775 "${SITES_DIR}/${site_name}"
+    chown -R www-data:www-data "${SITES_DIR}/${site_name}"
+    chmod -R 755 "${SITES_DIR}/${site_name}"
     log_success "Permissões ajustadas."
 
-    # 13. Registrar no painel manager (via API)
+    # 13. Registrar no painel manager
     log_info "Registrando site no painel de gerenciamento..."
-    curl -s -X POST "http://manager.localhost/api/sites" \
+    curl -s -X POST "${MANAGER_URL}/api/sites" \
         -H "Content-Type: application/json" \
         -d "{\"name\":\"${site_name}\",\"url\":\"${site_url}\",\"db_name\":\"${db_name}\",\"wp_version\":\"${wp_version}\",\"admin_user\":\"${admin_user}\",\"admin_email\":\"${admin_email}\",\"status\":\"active\"}" \
         > /dev/null 2>&1 || true
 
-    # Resultado final
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║  ✅ WordPress criado com sucesso!                ║${NC}"
@@ -913,7 +865,7 @@ cmd_remove() {
 
     check_running
 
-    # 1. Backup antes de remover (segurança)
+    # 1. Backup antes de remover
     log_info "Criando backup de segurança..."
     cmd_backup "$site_name" 2>/dev/null || true
 
@@ -928,17 +880,18 @@ cmd_remove() {
 
     # 3. Remover config do nginx
     log_info "Removendo configuração do Nginx..."
+    rm -f "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
     rm -f "${NGINX_CONF_DIR}/site-${site_name}.conf"
-    docker compose exec nginx nginx -s reload 2>/dev/null || docker compose restart nginx
+    systemctl reload nginx
     log_success "Config Nginx removida."
 
-    # 4. Remover arquivos (usar docker exec como root para garantir permissão sobre arquivos criados pelo WP-CLI)
+    # 4. Remover arquivos
     log_info "Removendo arquivos do site..."
-    docker exec wp-php rm -rf "/var/www/sites/${site_name}" 2>/dev/null || rm -rf "${SITES_DIR}/${site_name}"
+    rm -rf "${SITES_DIR}/${site_name}"
     log_success "Arquivos removidos."
 
     # 5. Remover do painel manager
-    curl -s -X DELETE "http://manager.localhost/api/sites/${site_name}" > /dev/null 2>&1 || true
+    curl -s -X DELETE "${MANAGER_URL}/api/sites/${site_name}" > /dev/null 2>&1 || true
 
     echo ""
     log_success "Site '${site_name}' removido com sucesso!"
@@ -959,29 +912,26 @@ cmd_list() {
         return
     fi
 
-    printf "  ${BOLD}%-20s %-30s %-15s${NC}\n" "NOME" "URL" "STATUS"
+    printf "  ${BOLD}%-20s %-45s %-15s${NC}\n" "NOME" "URL" "STATUS"
     echo -e "  ${CYAN}──────────────────────────────────────────────────${NC}"
 
     for site_dir in "${SITES_DIR}"/*/; do
         if [[ -f "${site_dir}wp-config.php" ]]; then
             local name=$(basename "$site_dir")
-            local url="http://${name}.localhost"
+            local url="https://${name}.${BASE_DOMAIN}"
             local status="${GREEN}ativo${NC}"
 
-            # Verificar se o nginx conf existe
-            if [[ ! -f "${NGINX_CONF_DIR}/site-${name}.conf" ]]; then
+            if [[ ! -L "${NGINX_ENABLED_DIR}/site-${name}.conf" ]]; then
                 status="${RED}sem nginx${NC}"
             fi
 
-            printf "  %-20s %-30s %-15b\n" "$name" "$url" "$status"
+            printf "  %-20s %-45s %-15b\n" "$name" "$url" "$status"
         fi
     done
 
     echo ""
     echo -e "  ${BOLD}Links úteis:${NC}"
-    echo -e "  Painel:      ${CYAN}http://manager.localhost${NC}"
-    echo -e "  phpMyAdmin:  ${CYAN}http://localhost:8080${NC}"
-    echo -e "  Mailpit:     ${CYAN}http://localhost:8025${NC}"
+    echo -e "  Painel: ${CYAN}${MANAGER_URL}${NC}"
     echo ""
 }
 
@@ -1008,12 +958,10 @@ cmd_backup() {
 
     mkdir -p "$backup_dir"
 
-    # Backup do banco
     log_info "Exportando banco de dados..."
-    docker compose exec -T mysql mysqldump -uroot -p${MYSQL_ROOT_PASSWORD} "${db_name}" > "${backup_dir}/database.sql" 2>/dev/null
+    MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysqldump -uroot -h"${MYSQL_HOST}" "${db_name}" > "${backup_dir}/database.sql" 2>/dev/null
     log_success "Banco exportado."
 
-    # Backup dos arquivos
     log_info "Compactando arquivos do site..."
     tar -czf "${backup_dir}/files.tar.gz" -C "${SITES_DIR}" "${site_name}"
     log_success "Arquivos compactados."
@@ -1040,7 +988,6 @@ cmd_restore() {
         exit 1
     fi
 
-    # Listar backups disponíveis
     echo ""
     echo -e "${BOLD}Backups disponíveis para '${site_name}':${NC}"
     local i=1
@@ -1064,26 +1011,25 @@ cmd_restore() {
 
     local db_name=$(get_db_name "$site_name")
 
-    # Restaurar banco
     if [[ -f "${backup_dir}/database.sql" ]]; then
         log_info "Restaurando banco de dados..."
         run_mysql "DROP DATABASE IF EXISTS \`${db_name}\`; CREATE DATABASE \`${db_name}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-        docker compose exec -T mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} "${db_name}" < "${backup_dir}/database.sql"
+        MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql -uroot -h"${MYSQL_HOST}" "${db_name}" < "${backup_dir}/database.sql"
         log_success "Banco restaurado."
     fi
 
-    # Restaurar arquivos
     if [[ -f "${backup_dir}/files.tar.gz" ]]; then
         log_info "Restaurando arquivos..."
         rm -rf "${SITES_DIR}/${site_name}"
         tar -xzf "${backup_dir}/files.tar.gz" -C "${SITES_DIR}"
+        chown -R www-data:www-data "${SITES_DIR}/${site_name}"
         log_success "Arquivos restaurados."
     fi
 
-    # Reconfigurar nginx
-    if [[ ! -f "${NGINX_CONF_DIR}/site-${site_name}.conf" ]]; then
+    if [[ ! -L "${NGINX_ENABLED_DIR}/site-${site_name}.conf" ]]; then
         sed "s/{{SITE_NAME}}/${site_name}/g" "${NGINX_TEMPLATE}" > "${NGINX_CONF_DIR}/site-${site_name}.conf"
-        docker compose exec nginx nginx -s reload 2>/dev/null || docker compose restart nginx
+        ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
+        systemctl reload nginx
     fi
 
     echo ""
@@ -1117,34 +1063,31 @@ cmd_clone() {
 
     local source_db=$(get_db_name "$source")
     local target_db=$(get_db_name "$target")
-    local target_url="http://${target}.localhost"
+    local target_url="https://${target}.${BASE_DOMAIN}"
 
     log_info "Clonando '${source}' para '${target}'..."
 
-    # Copiar arquivos
     log_info "Copiando arquivos..."
     cp -r "${SITES_DIR}/${source}" "${SITES_DIR}/${target}"
+    chown -R www-data:www-data "${SITES_DIR}/${target}"
     log_success "Arquivos copiados."
 
-    # Clonar banco
     log_info "Clonando banco de dados..."
     run_mysql "CREATE DATABASE IF NOT EXISTS \`${target_db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-    docker compose exec -T mysql mysqldump -uroot -p${MYSQL_ROOT_PASSWORD} "${source_db}" | \
-        docker compose exec -T mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} "${target_db}"
-    run_mysql "GRANT ALL PRIVILEGES ON \`${target_db}\`.* TO '${MYSQL_USER}'@'%'; FLUSH PRIVILEGES;"
+    MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysqldump -uroot -h"${MYSQL_HOST}" "${source_db}" | \
+        MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql -uroot -h"${MYSQL_HOST}" "${target_db}"
+    run_mysql "GRANT ALL PRIVILEGES ON \`${target_db}\`.* TO '${MYSQL_USER}'@'localhost'; FLUSH PRIVILEGES;"
     log_success "Banco clonado."
 
-    # Atualizar wp-config
     log_info "Atualizando configurações..."
     sed -i "s/${source_db}/${target_db}/g" "${SITES_DIR}/${target}/wp-config.php"
-    sed -i "s|http://${source}.localhost|${target_url}|g" "${SITES_DIR}/${target}/wp-config.php"
+    sed -i "s|https://${source}.${BASE_DOMAIN}|${target_url}|g" "${SITES_DIR}/${target}/wp-config.php"
 
-    # Search-replace no banco
-    run_wpcli "$target" search-replace "http://${source}.localhost" "${target_url}" --all-tables
+    run_wpcli "$target" search-replace "https://${source}.${BASE_DOMAIN}" "${target_url}" --all-tables
 
-    # Nginx
     sed "s/{{SITE_NAME}}/${target}/g" "${NGINX_TEMPLATE}" > "${NGINX_CONF_DIR}/site-${target}.conf"
-    docker compose exec nginx nginx -s reload 2>/dev/null || docker compose restart nginx
+    ln -sf "${NGINX_CONF_DIR}/site-${target}.conf" "${NGINX_ENABLED_DIR}/site-${target}.conf"
+    systemctl reload nginx
 
     log_success "Site clonado com sucesso!"
     echo -e "  Acesse: ${CYAN}${target_url}${NC}"
@@ -1152,7 +1095,7 @@ cmd_clone() {
 }
 
 # ===========================================================
-# Comando: stop-site / start-site - Parar/Iniciar site
+# Comando: stop-site / start-site
 # ===========================================================
 cmd_stop_site() {
     local site_name="$1"
@@ -1162,11 +1105,11 @@ cmd_stop_site() {
     fi
 
     if [[ -f "${NGINX_CONF_DIR}/site-${site_name}.conf" ]]; then
-        mv "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_CONF_DIR}/site-${site_name}.conf.disabled"
-        docker compose exec nginx nginx -s reload 2>/dev/null || docker compose restart nginx
+        rm -f "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
+        systemctl reload nginx
         log_success "Site '${site_name}' desativado."
     else
-        log_warn "Site já está desativado ou não existe."
+        log_warn "Site não encontrado ou já desativado."
     fi
 }
 
@@ -1177,12 +1120,12 @@ cmd_start_site() {
         exit 1
     fi
 
-    if [[ -f "${NGINX_CONF_DIR}/site-${site_name}.conf.disabled" ]]; then
-        mv "${NGINX_CONF_DIR}/site-${site_name}.conf.disabled" "${NGINX_CONF_DIR}/site-${site_name}.conf"
-        docker compose exec nginx nginx -s reload 2>/dev/null || docker compose restart nginx
+    if [[ -f "${NGINX_CONF_DIR}/site-${site_name}.conf" ]]; then
+        ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
+        systemctl reload nginx
         log_success "Site '${site_name}' ativado."
     else
-        log_warn "Site já está ativo ou não existe."
+        log_warn "Configuração Nginx não encontrada. Site não foi criado corretamente?"
     fi
 }
 
@@ -1198,12 +1141,13 @@ cmd_shell() {
     if [[ $# -gt 0 ]]; then
         run_wpcli "$site_name" "$@"
     else
-        docker exec -it -w "/var/www/sites/${site_name}" wp-php bash
+        log_info "Abrindo shell em ${SITES_DIR}/${site_name}"
+        cd "${SITES_DIR}/${site_name}" && bash
     fi
 }
 
 # ===========================================================
-# Comando: plugin/theme - Instalar plugin ou tema
+# Comando: plugin/theme
 # ===========================================================
 cmd_plugin() {
     local site_name="$1"
@@ -1236,7 +1180,7 @@ cmd_theme() {
 }
 
 # ===========================================================
-# Comando: update - Atualizar WordPress de um site
+# Comando: update - Atualizar WordPress
 # ===========================================================
 cmd_update() {
     local site_name="$1"
@@ -1248,7 +1192,6 @@ cmd_update() {
 
     check_running
 
-    # Backup antes
     log_info "Criando backup antes da atualização..."
     cmd_backup "$site_name"
 
@@ -1265,17 +1208,17 @@ cmd_update() {
 }
 
 # ===========================================================
-# Comando: logs - Ver logs de um site
+# Comando: logs - Ver logs
 # ===========================================================
 cmd_logs() {
     local site_name="$1"
     local lines="${2:-50}"
 
     if [[ -z "$site_name" ]]; then
-        echo "Uso: $0 logs <site> [número-de-linhas]"
+        echo "Uso: $0 logs <site|nginx|php|mysql> [linhas]"
         echo ""
         echo "Logs disponíveis:"
-        echo "  nginx   - Logs do Nginx (todos os sites)"
+        echo "  nginx   - Logs do Nginx"
         echo "  php     - Logs do PHP-FPM"
         echo "  mysql   - Logs do MySQL"
         echo "  <site>  - Debug log do WordPress"
@@ -1283,9 +1226,18 @@ cmd_logs() {
     fi
 
     case "$site_name" in
-        nginx)  docker compose logs --tail="$lines" -f nginx;;
-        php)    docker compose logs --tail="$lines" -f php;;
-        mysql)  docker compose logs --tail="$lines" -f mysql;;
+        nginx)
+            journalctl -u nginx --no-pager -n "$lines" -f 2>/dev/null || \
+                tail -n "$lines" -f /var/log/nginx/error.log
+            ;;
+        php)
+            journalctl -u php8.4-fpm --no-pager -n "$lines" -f 2>/dev/null || \
+                tail -n "$lines" -f /var/log/php8.4-fpm.log
+            ;;
+        mysql)
+            journalctl -u mysql --no-pager -n "$lines" -f 2>/dev/null || \
+                tail -n "$lines" -f /var/log/mysql/error.log
+            ;;
         *)
             local debug_log="${SITES_DIR}/${site_name}/wp-content/debug.log"
             if [[ -f "$debug_log" ]]; then
@@ -1293,7 +1245,13 @@ cmd_logs() {
             else
                 log_warn "Nenhum debug.log encontrado para '${site_name}'."
                 log_info "Mostrando logs do Nginx para este site..."
-                docker compose exec nginx tail -n "$lines" -f "/var/log/nginx/${site_name}-access.log" "/var/log/nginx/${site_name}-error.log"
+                local access="/var/log/nginx/${site_name}-access.log"
+                local error="/var/log/nginx/${site_name}-error.log"
+                if [[ -f "$access" ]] || [[ -f "$error" ]]; then
+                    tail -n "$lines" -f "$access" "$error" 2>/dev/null
+                else
+                    log_warn "Logs do Nginx não encontrados para '${site_name}'."
+                fi
             fi
             ;;
     esac
@@ -1314,7 +1272,7 @@ cmd_db() {
             fi
             local db_name=$(get_db_name "$site_name")
             local export_file="${PROJECT_DIR}/${site_name}-db-$(date +%Y%m%d_%H%M%S).sql"
-            docker compose exec -T mysql mysqldump -uroot -p${MYSQL_ROOT_PASSWORD} "${db_name}" > "$export_file"
+            MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysqldump -uroot -h"${MYSQL_HOST}" "${db_name}" > "$export_file"
             log_success "Banco exportado para: ${export_file}"
             ;;
         import)
@@ -1324,7 +1282,7 @@ cmd_db() {
                 exit 1
             fi
             local db_name=$(get_db_name "$site_name")
-            docker compose exec -T mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} "${db_name}" < "$sql_file"
+            MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql -uroot -h"${MYSQL_HOST}" "${db_name}" < "$sql_file"
             log_success "Banco importado com sucesso!"
             ;;
         reset)
@@ -1337,7 +1295,7 @@ cmd_db() {
             fi
             local db_name=$(get_db_name "$site_name")
             run_mysql "DROP DATABASE IF EXISTS \`${db_name}\`; CREATE DATABASE \`${db_name}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-            run_mysql "GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${MYSQL_USER}'@'%'; FLUSH PRIVILEGES;"
+            run_mysql "GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${MYSQL_USER}'@'localhost'; FLUSH PRIVILEGES;"
             log_success "Banco '${db_name}' resetado."
             ;;
         *)
@@ -1347,58 +1305,57 @@ cmd_db() {
 }
 
 # ===========================================================
-# Comando: status - Status dos containers
+# Comando: status
 # ===========================================================
 cmd_status() {
     echo ""
-    echo -e "${BOLD}Status dos containers:${NC}"
+    echo -e "${BOLD}Status dos serviços:${NC}"
     echo -e "${CYAN}──────────────────────────────────────────────────${NC}"
-    docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+    for svc in nginx php8.4-fpm mysql; do
+        if systemctl is-active --quiet "$svc" 2>/dev/null; then
+            echo -e "  ${GREEN}●${NC} ${BOLD}${svc}${NC} — rodando"
+        else
+            echo -e "  ${RED}●${NC} ${BOLD}${svc}${NC} — parado"
+        fi
+    done
     echo ""
     cmd_list
 }
 
 # ===========================================================
-# Comandos Docker: up, down, restart, rebuild
+# Comandos de serviço: up, down, restart, rebuild
 # ===========================================================
 cmd_up() {
     log_info "Iniciando todos os serviços..."
-    docker compose up -d --build
+    systemctl start nginx php8.4-fpm mysql
     echo ""
     log_success "Todos os serviços iniciados!"
     echo ""
-    echo -e "  Painel:      ${CYAN}http://manager.localhost${NC}"
-    echo -e "  phpMyAdmin:  ${CYAN}http://localhost:8080${NC}"
-    echo -e "  Mailpit:     ${CYAN}http://localhost:8025${NC}"
+    echo -e "  Painel: ${CYAN}${MANAGER_URL}${NC}"
     echo ""
 }
 
 cmd_down() {
     log_info "Parando todos os serviços..."
-    docker compose down
+    systemctl stop nginx php8.4-fpm mysql
     log_success "Serviços parados."
 }
 
 cmd_restart() {
     log_info "Reiniciando serviços..."
-    docker compose restart
+    systemctl restart nginx php8.4-fpm mysql
     log_success "Serviços reiniciados."
 }
 
 cmd_rebuild() {
-    log_info "Reconstruindo containers..."
-    docker compose down
-    docker compose build --no-cache
-    docker compose up -d
-    log_success "Containers reconstruídos!"
+    log_warn "Rebuild não se aplica nesta instalação (sem Docker)."
+    log_info "Reiniciando serviços..."
+    cmd_restart
 }
 
 cmd_destroy() {
-    log_warn "Isso vai REMOVER todos os containers, volumes e dados!"
-    if confirm "Tem certeza absoluta?"; then
-        docker compose down -v --remove-orphans
-        log_success "Tudo removido."
-    fi
+    log_warn "Destroy não se aplica nesta instalação (sem Docker)."
+    log_info "Para remover todos os sites use './wp-manager.sh remove <nome>' em cada um."
 }
 
 # ===========================================================
@@ -1413,8 +1370,8 @@ cmd_help() {
     echo -e "    --version, -v <ver>       Versão do WP (default: latest)"
     echo -e "    --locale, -l <locale>     Idioma (default: pt_BR)"
     echo -e "    --title, -t <título>      Título do site"
-    echo -e "    --admin-user <user>       Usuário admin (default: admin)"
-    echo -e "    --admin-pass <pass>       Senha admin (default: admin123)"
+    echo -e "    --admin-user <user>       Usuário admin"
+    echo -e "    --admin-pass <pass>       Senha admin"
     echo -e "    --multisite               Instalar como multisite"
     echo -e "    --woocommerce             Instalar WooCommerce"
     echo ""
@@ -1424,10 +1381,10 @@ cmd_help() {
     echo ""
     echo -e "  ${GREEN}list${NC}                       Listar todos os sites"
     echo -e "  ${GREEN}clone${NC} <origem> <destino>   Clonar site existente"
-    echo -e "  ${GREEN}start-site${NC} <nome>          Ativar site desativado"
-    echo -e "  ${GREEN}stop-site${NC} <nome>           Desativar site"
+    echo -e "  ${GREEN}start-site${NC} <nome>          Ativar site (habilitar no nginx)"
+    echo -e "  ${GREEN}stop-site${NC} <nome>           Desativar site (remover do nginx)"
     echo -e "  ${GREEN}update${NC} <nome> [versão]     Atualizar WordPress"
-    echo -e "  ${GREEN}status${NC}                     Status dos containers e sites"
+    echo -e "  ${GREEN}status${NC}                     Status dos serviços e sites"
     echo ""
     echo -e "${BOLD}Banco de Dados:${NC}"
     echo -e "  ${GREEN}db export${NC} <nome>           Exportar banco para SQL"
@@ -1446,12 +1403,10 @@ cmd_help() {
     echo -e "${BOLD}Logs:${NC}"
     echo -e "  ${GREEN}logs${NC} <nome|nginx|php|mysql> [linhas]  Ver logs"
     echo ""
-    echo -e "${BOLD}Docker:${NC}"
-    echo -e "  ${GREEN}up${NC}                         Iniciar todos os serviços"
-    echo -e "  ${GREEN}down${NC}                       Parar todos os serviços"
+    echo -e "${BOLD}Serviços:${NC}"
+    echo -e "  ${GREEN}up${NC}                         Iniciar nginx, php-fpm, mysql"
+    echo -e "  ${GREEN}down${NC}                       Parar serviços"
     echo -e "  ${GREEN}restart${NC}                    Reiniciar serviços"
-    echo -e "  ${GREEN}rebuild${NC}                    Reconstruir containers"
-    echo -e "  ${GREEN}destroy${NC}                    Remover TUDO (containers + dados)"
     echo ""
     echo -e "${BOLD}Exemplos:${NC}"
     echo -e "  ./wp-manager.sh create meusite"

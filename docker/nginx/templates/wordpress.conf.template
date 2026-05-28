@@ -1,20 +1,35 @@
 # ===========================================
 # WordPress: {{SITE_NAME}}
-# Acesso: http://{{SITE_NAME}}.localhost
+# Acesso: https://{{SITE_NAME}}.wp.devconecta.com.br
 # ===========================================
+
+# Redirect HTTP → HTTPS
 server {
     listen 80;
-    server_name {{SITE_NAME}}.localhost;
+    server_name {{SITE_NAME}}.wp.devconecta.com.br;
+    return 301 https://$host$request_uri;
+}
 
-    root /var/www/sites/{{SITE_NAME}};
+# HTTPS
+server {
+    listen 443 ssl;
+    server_name {{SITE_NAME}}.wp.devconecta.com.br;
+
+    ssl_certificate     /etc/ssl/cloudflare/devconecta.com.br.crt;
+    ssl_certificate_key /etc/ssl/cloudflare/devconecta.com.br.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    root /var/www/wordpress/{{SITE_NAME}};
     index index.php index.html;
 
     charset utf-8;
     client_max_body_size 256M;
 
-    # Logs separados por site
     access_log /var/log/nginx/{{SITE_NAME}}-access.log;
-    error_log /var/log/nginx/{{SITE_NAME}}-error.log;
+    error_log  /var/log/nginx/{{SITE_NAME}}-error.log;
 
     # WordPress Permalinks
     location / {
@@ -24,7 +39,7 @@ server {
     # PHP-FPM
     location ~ \.php$ {
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass php:9000;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;

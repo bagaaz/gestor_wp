@@ -4,52 +4,54 @@ namespace App\Services;
 
 class DockerService
 {
+    private string $mysqlHost;
+    private string $mysqlPassword;
+
+    public function __construct()
+    {
+        $this->mysqlHost = env('DB_HOST', '127.0.0.1');
+        $this->mysqlPassword = env('DB_PASSWORD', '');
+    }
+
     /**
-     * Retorna o status dos containers Docker
+     * Retorna o status dos serviços do sistema
      */
     public function getContainersStatus(): array
     {
-        $output = shell_exec('docker compose ps --format json 2>/dev/null') ?? '';
+        $services = ['nginx', 'php8.4-fpm', 'mysql'];
         $containers = [];
 
-        foreach (explode("\n", trim($output)) as $line) {
-            if (empty($line)) continue;
-            $data = json_decode($line, true);
-            if ($data) {
-                $containers[] = [
-                    'name' => $data['Name'] ?? '',
-                    'status' => $data['State'] ?? 'unknown',
-                    'health' => $data['Health'] ?? '',
-                    'ports' => $data['Ports'] ?? '',
-                    'running' => ($data['State'] ?? '') === 'running',
-                ];
-            }
+        foreach ($services as $svc) {
+            $active = trim(shell_exec("systemctl is-active {$svc} 2>/dev/null") ?? 'inactive');
+            $containers[] = [
+                'name'    => $svc,
+                'status'  => $active,
+                'health'  => '',
+                'ports'   => '',
+                'running' => $active === 'active',
+            ];
         }
 
         return $containers;
     }
 
     /**
-     * Verifica se os serviços estão rodando
+     * Verifica se o nginx está rodando
      */
     public function isRunning(): bool
     {
-        $containers = $this->getContainersStatus();
-        foreach ($containers as $c) {
-            if (str_contains($c['name'], 'nginx') && $c['running']) {
-                return true;
-            }
-        }
-        return false;
+        $status = trim(shell_exec('systemctl is-active nginx 2>/dev/null') ?? '');
+        return $status === 'active';
     }
 
     /**
-     * Executa comando no container MySQL
+     * Executa query diretamente no MySQL
      */
     public function mysqlQuery(string $query): ?string
     {
         $escaped = escapeshellarg($query);
-        return shell_exec("docker compose exec -T mysql mysql -uroot -proot -e {$escaped} 2>/dev/null");
+        $pass = $this->mysqlPassword;
+        return shell_exec("MYSQL_PWD={$pass} mysql -uroot -h{$this->mysqlHost} --batch -e {$escaped} 2>/dev/null");
     }
 
     /**

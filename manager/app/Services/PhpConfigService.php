@@ -23,8 +23,8 @@ class PhpConfigService
 
     public function __construct()
     {
-        $this->phpIniPath = '/var/www/project/docker/php/php.ini';
-        $this->nginxConfPath = '/var/www/project/docker/nginx/nginx.conf';
+        $this->phpIniPath = '/etc/php/8.4/fpm/php.ini';
+        $this->nginxConfPath = '/etc/nginx/nginx.conf';
     }
 
     /**
@@ -67,7 +67,7 @@ class PhpConfigService
             implode(',', array_map(fn($k) => "'$k'=>ini_get('$k')", $keys)) .
             ']);';
 
-        $cmd = "docker exec wp-php php -c /usr/local/etc/php/conf.d/ -r " . escapeshellarg($phpCode) . " 2>/dev/null";
+        $cmd = "php8.4 -r " . escapeshellarg($phpCode) . " 2>/dev/null";
         $output = trim(shell_exec($cmd) ?? '');
 
         $cliValues = json_decode($output, true);
@@ -219,11 +219,9 @@ class PhpConfigService
     {
         $results = [];
 
-        // Reiniciar container PHP (necessário por causa do bind mount de arquivo único)
-        $results['php'] = trim(shell_exec('cd /var/www/project && docker compose restart php 2>&1') ?? '');
+        $results['php'] = trim(shell_exec('systemctl restart php8.4-fpm 2>&1') ?? '');
 
-        // Recarregar Nginx
-        $results['nginx'] = trim(shell_exec('docker exec wp-nginx nginx -s reload 2>&1') ?? '');
+        $results['nginx'] = trim(shell_exec('systemctl reload nginx 2>&1') ?? '');
 
         return $results;
     }
