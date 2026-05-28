@@ -12,16 +12,44 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SITES_DIR="/var/www/wordpress"
-MYSQL_ROOT_PASSWORD="Ga96911431@"
+SECRETS_FILE="/etc/wp-manager/secrets.env"
 
 echo -e "${CYAN}${BOLD}=== Setup WP Manager VPS ===${NC}"
 echo ""
 
-# --- 1. Verificar root ---
+# --- 0. Verificar root ---
 if [[ "$EUID" -ne 0 ]]; then
     echo -e "${RED}Execute como root: sudo bash vps/setup.sh${NC}"
     exit 1
 fi
+
+# --- 1. Credenciais seguras ---
+echo -e "${CYAN}[0/8]${NC} Configurando credenciais..."
+
+if [[ -f "$SECRETS_FILE" ]]; then
+    source "$SECRETS_FILE"
+    echo -e "  ${YELLOW}Arquivo de segredos existente carregado: ${SECRETS_FILE}${NC}"
+fi
+
+if [[ -z "${MYSQL_ROOT_PASSWORD}" ]]; then
+    read -s -p "$(echo -e "${CYAN}Senha root do MySQL:${NC} ")" MYSQL_ROOT_PASSWORD
+    echo ""
+fi
+
+if [[ -z "${WP_DB_PASSWORD}" ]]; then
+    WP_DB_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
+    echo -e "  ${GREEN}Senha do usuário WordPress gerada automaticamente${NC}"
+fi
+
+mkdir -p /etc/wp-manager
+cat > "$SECRETS_FILE" <<SECRETS
+MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
+WP_DB_PASSWORD="${WP_DB_PASSWORD}"
+SECRETS
+chmod 600 "$SECRETS_FILE"
+chown root:root "$SECRETS_FILE"
+echo -e "  ${GREEN}Segredos salvos em ${SECRETS_FILE} (modo 600)${NC}"
+echo -e "${GREEN}OK${NC}"
 
 # --- 2. Extensões PHP necessárias ---
 echo -e "${CYAN}[1/8]${NC} Instalando extensões PHP 8.4..."
@@ -61,7 +89,8 @@ echo -e "${GREEN}OK${NC}"
 echo -e "${CYAN}[5/8]${NC} Configurando MySQL..."
 MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysql -uroot -h127.0.0.1 <<SQL
 CREATE DATABASE IF NOT EXISTS \`wp_manager\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'wordpress'@'localhost' IDENTIFIED BY 'wordpress';
+CREATE USER IF NOT EXISTS 'wordpress'@'localhost' IDENTIFIED BY '${WP_DB_PASSWORD}';
+ALTER USER 'wordpress'@'localhost' IDENTIFIED BY '${WP_DB_PASSWORD}';
 FLUSH PRIVILEGES;
 SQL
 echo -e "${GREEN}OK${NC}"

@@ -19,6 +19,11 @@ manager/storage/app/plugins/
 # Docker volumes
 mysql_data/
 
+# Arquivo de segredos local (nunca commitar)
+secrets.env
+.secrets.env
+*.secrets
+
 # IDE
 .idea/
 .vscode/

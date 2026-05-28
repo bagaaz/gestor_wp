@@ -30,10 +30,15 @@ BACKUPS_DIR="${PROJECT_DIR}/backups"
 BASE_DOMAIN="wp.devconecta.com.br"
 MANAGER_URL="https://wp.devconecta.com.br"
 
-# MySQL
-MYSQL_ROOT_PASSWORD="Ga96911431@"
+# MySQL — carregado de arquivo de segredos (nunca hardcode aqui)
+SECRETS_FILE="/etc/wp-manager/secrets.env"
+if [[ -f "$SECRETS_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$SECRETS_FILE"
+fi
+MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:?Defina MYSQL_ROOT_PASSWORD em ${SECRETS_FILE}}"
 MYSQL_USER="wordpress"
-MYSQL_PASSWORD="wordpress"
+MYSQL_PASSWORD="${WP_DB_PASSWORD:?Defina WP_DB_PASSWORD em ${SECRETS_FILE}}"
 MYSQL_HOST="127.0.0.1"
 
 # Defaults
