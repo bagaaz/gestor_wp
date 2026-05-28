@@ -101,7 +101,10 @@ cd "${PROJECT_DIR}/manager"
 
 if [[ ! -f .env ]]; then
     cp .env.example .env
-    echo -e "  ${YELLOW}Arquivo .env criado a partir do .env.example${NC}"
+    # Substituir paths e senha no .env gerado
+    sed -i "s|/var/www/gestor_wp|${PROJECT_DIR}|g" .env
+    sed -i "s|DB_PASSWORD=sua_senha_aqui|DB_PASSWORD=${MYSQL_ROOT_PASSWORD}|g" .env
+    echo -e "  ${YELLOW}Arquivo .env criado com paths e senha configurados${NC}"
 fi
 
 composer install --no-dev --optimize-autoloader --quiet
@@ -121,8 +124,9 @@ echo -e "${GREEN}OK${NC}"
 # --- 8. Nginx ---
 echo -e "${CYAN}[7/8]${NC} Configurando Nginx..."
 
-# Config do manager
-cp "${PROJECT_DIR}/vps/nginx/wp-manager.conf" /etc/nginx/sites-available/wp-manager.conf
+# Config do manager — substitui o path padrão pelo path real do projeto
+sed "s|/var/www/gestor_wp|${PROJECT_DIR}|g" "${PROJECT_DIR}/vps/nginx/wp-manager.conf" \
+    > /etc/nginx/sites-available/wp-manager.conf
 
 if [[ ! -L /etc/nginx/sites-enabled/wp-manager.conf ]]; then
     ln -s /etc/nginx/sites-available/wp-manager.conf /etc/nginx/sites-enabled/wp-manager.conf
