@@ -199,6 +199,45 @@ class SiteController extends Controller
         );
     }
 
+    /**
+     * Ativar plugin de um site
+     */
+    public function pluginActivate(Request $request, Site $site, string $plugin)
+    {
+        $result = $this->wordpress->activatePlugin($site->name, $plugin);
+
+        return back()->with(
+            $result['success'] ? 'success' : 'error',
+            $result['success'] ? "Plugin '{$plugin}' ativado com sucesso!" : "Erro ao ativar plugin: {$result['output']}"
+        );
+    }
+
+    /**
+     * Desativar plugin de um site
+     */
+    public function pluginDeactivate(Request $request, Site $site, string $plugin)
+    {
+        $result = $this->wordpress->deactivatePlugin($site->name, $plugin);
+
+        return back()->with(
+            $result['success'] ? 'success' : 'error',
+            $result['success'] ? "Plugin '{$plugin}' desativado com sucesso!" : "Erro ao desativar plugin: {$result['output']}"
+        );
+    }
+
+    /**
+     * Remover plugin de um site
+     */
+    public function pluginDestroy(Request $request, Site $site, string $plugin)
+    {
+        $result = $this->wordpress->deletePlugin($site->name, $plugin);
+
+        return back()->with(
+            $result['success'] ? 'success' : 'error',
+            $result['success'] ? "Plugin '{$plugin}' removido com sucesso!" : "Erro ao remover plugin: {$result['output']}"
+        );
+    }
+
     // ==========================================
     // API Endpoints (usados pelo wp-manager.sh)
     // ==========================================

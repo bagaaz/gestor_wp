@@ -225,6 +225,60 @@ class WordPressService
         }
     }
 
+    /**
+     * Ativa um plugin via WP-CLI
+     */
+    public function activatePlugin(string $siteName, string $pluginSlug): array
+    {
+        $output = $this->runWpCliWithStderr($siteName, 'plugin activate ' . escapeshellarg($pluginSlug));
+        $success = str_contains($output, 'Success');
+
+        if ($success) {
+            ActivityLog::create([
+                'action' => 'plugin_activated',
+                'description' => "Plugin '{$pluginSlug}' ativado no site '{$siteName}'",
+            ]);
+        }
+
+        return ['success' => $success, 'output' => $output];
+    }
+
+    /**
+     * Desativa um plugin via WP-CLI
+     */
+    public function deactivatePlugin(string $siteName, string $pluginSlug): array
+    {
+        $output = $this->runWpCliWithStderr($siteName, 'plugin deactivate ' . escapeshellarg($pluginSlug));
+        $success = str_contains($output, 'Success');
+
+        if ($success) {
+            ActivityLog::create([
+                'action' => 'plugin_deactivated',
+                'description' => "Plugin '{$pluginSlug}' desativado no site '{$siteName}'",
+            ]);
+        }
+
+        return ['success' => $success, 'output' => $output];
+    }
+
+    /**
+     * Remove um plugin via WP-CLI
+     */
+    public function deletePlugin(string $siteName, string $pluginSlug): array
+    {
+        $output = $this->runWpCliWithStderr($siteName, 'plugin delete ' . escapeshellarg($pluginSlug));
+        $success = str_contains($output, 'Success') || str_contains($output, 'Deleted');
+
+        if ($success) {
+            ActivityLog::create([
+                'action' => 'plugin_deleted',
+                'description' => "Plugin '{$pluginSlug}' removido do site '{$siteName}'",
+            ]);
+        }
+
+        return ['success' => $success, 'output' => $output];
+    }
+
     // ---- Helpers ----
 
     private function runWpCli(string $site, string $command): ?string
@@ -232,6 +286,12 @@ class WordPressService
         $cmd = "docker exec wp-php wp --allow-root --path=/var/www/sites/{$site} {$command} 2>/dev/null";
         $result = trim(shell_exec($cmd) ?? '');
         return $result ?: null;
+    }
+
+    private function runWpCliWithStderr(string $site, string $command): string
+    {
+        $cmd = "docker exec wp-php wp --allow-root --path=/var/www/sites/{$site} {$command} 2>&1";
+        return trim(shell_exec($cmd) ?? '');
     }
 
     private function getPluginsList(string $name): array

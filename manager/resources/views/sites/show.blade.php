@@ -75,15 +75,59 @@
                     </div>
                     <div class="divide-y divide-gray-100">
                         @foreach($info['plugins'] as $plugin)
-                            <div class="px-6 py-3 flex items-center justify-between">
-                                <div>
-                                    <span class="text-sm font-medium text-gray-900">{{ $plugin['name'] ?? 'N/A' }}</span>
+                            @php
+                                $slug = $plugin['name'] ?? '';
+                                $status = $plugin['status'] ?? 'inactive';
+                                $isManagedPlugin = !in_array($status, ['must-use', 'dropin']);
+                                $formId = 'delete-plugin-' . $loop->index;
+                            @endphp
+                            <div class="px-6 py-3 flex items-center justify-between gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <span class="text-sm font-medium text-gray-900">{{ $slug }}</span>
                                     <span class="text-xs text-gray-400 ml-2">v{{ $plugin['version'] ?? '?' }}</span>
                                 </div>
-                                <span class="text-xs px-2 py-0.5 rounded
-                                    {{ ($plugin['status'] ?? '') === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
-                                    {{ $plugin['status'] ?? 'inactive' }}
-                                </span>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    <span class="text-xs px-2 py-0.5 rounded
+                                        {{ $status === 'active' ? 'bg-green-100 text-green-700' : ($status === 'must-use' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600') }}">
+                                        {{ $status === 'active' ? 'ativo' : ($status === 'must-use' ? 'must-use' : ($status === 'dropin' ? 'dropin' : 'inativo')) }}
+                                    </span>
+
+                                    @if($isManagedPlugin)
+                                        {{-- Toggle ativo/inativo --}}
+                                        @if($status === 'active')
+                                            <form action="{{ route('sites.plugins.deactivate', [$site, $slug]) }}" method="POST">
+                                                @csrf
+                                                <button type="submit" title="Desativar"
+                                                        class="text-xs px-2 py-1 rounded bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors border border-yellow-200">
+                                                    <i class="fas fa-pause-circle mr-1"></i>Desativar
+                                                </button>
+                                            </form>
+                                        @else
+                                            <form action="{{ route('sites.plugins.activate', [$site, $slug]) }}" method="POST">
+                                                @csrf
+                                                <button type="submit" title="Ativar"
+                                                        class="text-xs px-2 py-1 rounded bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200">
+                                                    <i class="fas fa-play-circle mr-1"></i>Ativar
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        {{-- Remover plugin --}}
+                                        <form id="{{ $formId }}" action="{{ route('sites.plugins.destroy', [$site, $slug]) }}" method="POST">
+                                            @csrf
+                                            @method('DELETE')
+                                        </form>
+                                        <button type="button" title="Remover plugin"
+                                                @click="$dispatch('confirm-action', {
+                                                    title: 'Remover plugin',
+                                                    message: 'Isso vai remover permanentemente o plugin \'{{ $slug }}\' do site \'{{ $site->name }}\'. O plugin será desinstalado e seus arquivos removidos.',
+                                                    action: '{{ $formId }}'
+                                                })"
+                                                class="text-xs px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-200">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    @endif
+                                </div>
                             </div>
                         @endforeach
                     </div>

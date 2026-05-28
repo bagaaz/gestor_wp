@@ -21,6 +21,11 @@ Route::resource('sites', SiteController::class)->except(['edit', 'update']);
 Route::post('/sites/{site}/backup', [SiteController::class, 'backup'])->name('sites.backup');
 Route::post('/sites/{site}/clone', [SiteController::class, 'clone'])->name('sites.clone');
 
+// Gerenciamento de plugins do site
+Route::post('/sites/{site}/plugins/{plugin}/activate', [SiteController::class, 'pluginActivate'])->name('sites.plugins.activate');
+Route::post('/sites/{site}/plugins/{plugin}/deactivate', [SiteController::class, 'pluginDeactivate'])->name('sites.plugins.deactivate');
+Route::delete('/sites/{site}/plugins/{plugin}', [SiteController::class, 'pluginDestroy'])->name('sites.plugins.destroy');
+
 // Export para produção
 Route::get('/sites/{site}/export', [ExportController::class, 'showExportForm'])->name('sites.export');
 Route::post('/sites/{site}/export', [ExportController::class, 'export'])->name('sites.export.generate');

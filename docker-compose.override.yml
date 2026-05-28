@@ -1,0 +1,22 @@
+# Comunicação com o projeto server via rede shared-dev.
+# 'devconecta.localhost' é resolvido pelo alias do nginx na shared-dev — sem extra_hosts.
+
+services:
+  nginx:
+    networks:
+      - wp-network
+      - shared-dev
+
+  php-manager:
+    networks:
+      - wp-network
+      - shared-dev
+
+  php:
+    networks:
+      - wp-network
+      - shared-dev
+
+networks:
+  shared-dev:
+    external: true
