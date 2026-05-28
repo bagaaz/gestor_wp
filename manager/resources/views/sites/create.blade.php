@@ -19,13 +19,13 @@
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">
                         Nome do site <span class="text-red-500">*</span>
                     </label>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 overflow-hidden">
                         <input type="text" name="name" id="name" required
                                pattern="[a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9]"
                                value="{{ old('name') }}"
                                placeholder="meusite"
-                               class="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                        <span class="text-sm text-gray-500">.localhost</span>
+                               class="flex-1 px-4 py-2.5 text-sm outline-none border-none bg-white">
+                        <span class="px-3 py-2.5 text-sm text-gray-400 bg-gray-50 border-l border-gray-300 whitespace-nowrap">.{{ $baseDomain }}</span>
                     </div>
                     <p class="mt-1 text-xs text-gray-400">Apenas letras minúsculas, números e hífens. Ex: meu-site, loja01</p>
                     @error('name')

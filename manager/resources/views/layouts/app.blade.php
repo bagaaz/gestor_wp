@@ -150,24 +150,53 @@
             @endif
 
             @if(session('error'))
-                <div class="mx-6 mt-4 fade-in" x-data="{ show: true, showDetail: false }" x-show="show">
-                    <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
+                <div class="mx-6 mt-4 fade-in" x-data="{
+                        show: true,
+                        showDetail: false,
+                        copied: false,
+                        copy() {
+                            navigator.clipboard.writeText({{ json_encode(session('error_detail') ?? '') }});
+                            this.copied = true;
+                            setTimeout(() => this.copied = false, 2000);
+                        }
+                    }" x-show="show">
+                    <div class="bg-red-50 border border-red-200 rounded-lg overflow-hidden">
+                        <!-- Cabeçalho -->
+                        <div class="flex items-center justify-between px-4 py-3">
+                            <div class="flex items-center gap-2 text-red-800">
                                 <i class="fas fa-exclamation-circle"></i>
-                                {{ session('error') }}
+                                <span class="text-sm font-medium">{{ session('error') }}</span>
                                 @if(session('error_detail'))
-                                    <button @click="showDetail = !showDetail" class="text-xs underline ml-2">
+                                    <button @click="showDetail = !showDetail"
+                                            class="text-xs text-red-600 hover:text-red-800 underline ml-1 font-normal">
                                         <span x-text="showDetail ? 'Ocultar detalhes' : 'Ver detalhes'"></span>
                                     </button>
                                 @endif
                             </div>
-                            <button @click="show = false" class="text-red-600 hover:text-red-800">
-                                <i class="fas fa-times"></i>
+                            <button @click="show = false" class="text-red-400 hover:text-red-700 ml-4">
+                                <i class="fas fa-times text-sm"></i>
                             </button>
                         </div>
+
                         @if(session('error_detail'))
-                            <pre x-show="showDetail" x-cloak class="mt-3 p-3 bg-red-100 rounded text-xs text-red-900 overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap">{{ session('error_detail') }}</pre>
+                            <!-- Caixa de código com botão de copiar -->
+                            <div x-show="showDetail" x-cloak class="border-t border-red-200">
+                                <div class="relative bg-gray-900">
+                                    <!-- Botão copiar -->
+                                    <button @click="copy()"
+                                            class="absolute top-2 right-2 p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+                                            :title="copied ? 'Copiado!' : 'Copiar'">
+                                        <template x-if="!copied">
+                                            <i class="fas fa-copy text-xs"></i>
+                                        </template>
+                                        <template x-if="copied">
+                                            <i class="fas fa-check text-xs text-green-400"></i>
+                                        </template>
+                                    </button>
+                                    <!-- Conteúdo -->
+                                    <pre class="p-4 pr-10 text-xs text-red-300 overflow-x-auto max-h-72 overflow-y-auto whitespace-pre-wrap leading-relaxed font-mono">{{ session('error_detail') }}</pre>
+                                </div>
+                            </div>
                         @endif
                     </div>
                 </div>

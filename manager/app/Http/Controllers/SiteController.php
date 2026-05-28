@@ -32,7 +32,8 @@ class SiteController extends Controller
      */
     public function create()
     {
-        return view('sites.create');
+        $baseDomain = env('WP_BASE_DOMAIN', 'wp.devconecta.com.br');
+        return view('sites.create', compact('baseDomain'));
     }
 
     /**
