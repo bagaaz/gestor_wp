@@ -18,11 +18,11 @@ class WordPressService
 
     public function __construct()
     {
-        $this->sitesPath = env('WP_SITES_PATH', '/var/www/wordpress');
-        $this->nginxConfPath = env('WP_NGINX_CONF_PATH', '/etc/nginx/sites-available');
-        $this->nginxEnabledPath = env('WP_NGINX_ENABLED_PATH', '/etc/nginx/sites-enabled');
-        $this->projectRoot = env('WP_PROJECT_ROOT', '/var/www/gestor_wp');
-        $this->baseDomain = env('WP_BASE_DOMAIN', 'wp.devconecta.com.br');
+        $this->sitesPath = config('wp.sites_path');
+        $this->nginxConfPath = config('wp.nginx_conf');
+        $this->nginxEnabledPath = config('wp.nginx_enabled');
+        $this->projectRoot = config('wp.project_root');
+        $this->baseDomain = config('wp.base_domain');
     }
 
     /**

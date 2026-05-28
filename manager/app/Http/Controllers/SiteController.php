@@ -32,7 +32,7 @@ class SiteController extends Controller
      */
     public function create()
     {
-        $baseDomain = env('WP_BASE_DOMAIN', 'wp.devconecta.com.br');
+        $baseDomain = config('wp.base_domain');
         return view('sites.create', compact('baseDomain'));
     }
 
@@ -130,7 +130,7 @@ class SiteController extends Controller
                 . "  2. systemctl reload nginx sem sudo\n"
                 . "     Fix: adicione www-data em /etc/sudoers.d/wp-manager\n\n"
                 . "  3. WP_PROJECT_ROOT incorreto no .env\n"
-                . "     Atual: " . env('WP_PROJECT_ROOT', '(não definido)') . "\n"
+                . "     Atual: " . config('wp.project_root') . "\n"
                 . $lastLines;
         }
 
