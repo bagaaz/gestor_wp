@@ -798,7 +798,7 @@ MUPLUGIN
     log_info "Configurando Nginx..."
     sed "s/{{SITE_NAME}}/${site_name}/g" "${NGINX_TEMPLATE}" > "${NGINX_CONF_DIR}/site-${site_name}.conf"
     ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
-    systemctl reload nginx
+    sudo systemctl reload nginx
     log_success "Nginx configurado."
 
     # 12. Permissões
@@ -887,7 +887,7 @@ cmd_remove() {
     log_info "Removendo configuração do Nginx..."
     rm -f "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
     rm -f "${NGINX_CONF_DIR}/site-${site_name}.conf"
-    systemctl reload nginx
+    sudo systemctl reload nginx
     log_success "Config Nginx removida."
 
     # 4. Remover arquivos
@@ -1034,7 +1034,7 @@ cmd_restore() {
     if [[ ! -L "${NGINX_ENABLED_DIR}/site-${site_name}.conf" ]]; then
         sed "s/{{SITE_NAME}}/${site_name}/g" "${NGINX_TEMPLATE}" > "${NGINX_CONF_DIR}/site-${site_name}.conf"
         ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
-        systemctl reload nginx
+        sudo systemctl reload nginx
     fi
 
     echo ""
@@ -1092,7 +1092,7 @@ cmd_clone() {
 
     sed "s/{{SITE_NAME}}/${target}/g" "${NGINX_TEMPLATE}" > "${NGINX_CONF_DIR}/site-${target}.conf"
     ln -sf "${NGINX_CONF_DIR}/site-${target}.conf" "${NGINX_ENABLED_DIR}/site-${target}.conf"
-    systemctl reload nginx
+    sudo systemctl reload nginx
 
     log_success "Site clonado com sucesso!"
     echo -e "  Acesse: ${CYAN}${target_url}${NC}"
@@ -1111,7 +1111,7 @@ cmd_stop_site() {
 
     if [[ -f "${NGINX_CONF_DIR}/site-${site_name}.conf" ]]; then
         rm -f "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
-        systemctl reload nginx
+        sudo systemctl reload nginx
         log_success "Site '${site_name}' desativado."
     else
         log_warn "Site não encontrado ou já desativado."
@@ -1127,7 +1127,7 @@ cmd_start_site() {
 
     if [[ -f "${NGINX_CONF_DIR}/site-${site_name}.conf" ]]; then
         ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
-        systemctl reload nginx
+        sudo systemctl reload nginx
         log_success "Site '${site_name}' ativado."
     else
         log_warn "Configuração Nginx não encontrada. Site não foi criado corretamente?"
@@ -1332,7 +1332,7 @@ cmd_status() {
 # ===========================================================
 cmd_up() {
     log_info "Iniciando todos os serviços..."
-    systemctl start nginx php8.4-fpm mysql
+    sudo systemctl start nginx php8.4-fpm mysql
     echo ""
     log_success "Todos os serviços iniciados!"
     echo ""
@@ -1342,13 +1342,13 @@ cmd_up() {
 
 cmd_down() {
     log_info "Parando todos os serviços..."
-    systemctl stop nginx php8.4-fpm mysql
+    sudo systemctl stop nginx php8.4-fpm mysql
     log_success "Serviços parados."
 }
 
 cmd_restart() {
     log_info "Reiniciando serviços..."
-    systemctl restart nginx php8.4-fpm mysql
+    sudo systemctl restart nginx php8.4-fpm mysql
     log_success "Serviços reiniciados."
 }
 
