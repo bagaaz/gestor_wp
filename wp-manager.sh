@@ -98,7 +98,7 @@ check_running() {
             failed=true
         fi
     done
-    [[ "$failed" == true ]] && exit 1
+    if [[ "$failed" == true ]]; then exit 1; fi
 }
 
 run_mysql() {
