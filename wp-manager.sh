@@ -265,7 +265,7 @@ PHP
     # 5. Configurações pós-instalação
     log_info "Aplicando configurações pt-BR e otimizações..."
 
-    run_wpcli "$site_name" rewrite structure '/%postname%/' --hard
+    run_wpcli "$site_name" rewrite structure '/%postname%/'
     run_wpcli "$site_name" option update timezone_string 'America/Sao_Paulo'
     run_wpcli "$site_name" option update date_format 'd/m/Y'
     run_wpcli "$site_name" option update time_format 'H:i'
