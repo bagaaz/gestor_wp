@@ -112,7 +112,7 @@ php artisan key:generate --quiet
 php artisan migrate --force --quiet
 php artisan config:cache --quiet
 php artisan route:cache --quiet
-php artisan view:cache --quiet
+php artisan view:cache --quiet 2>/dev/null || true
 
 chown -R www-data:www-data "${PROJECT_DIR}/manager/storage"
 chown -R www-data:www-data "${PROJECT_DIR}/manager/bootstrap/cache"
