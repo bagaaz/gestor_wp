@@ -113,9 +113,30 @@ class SiteController extends Controller
                 ->with('success', "Site '{$params['name']}' criado com sucesso!");
         }
 
+        $output = $result['output'];
+
+        if (empty(trim($output ?? ''))) {
+            $logPath = storage_path('logs/laravel.log');
+            $lastLines = '';
+            if (file_exists($logPath)) {
+                $lines = array_slice(file($logPath), -30);
+                $lastLines = "\n\n--- Últimas linhas do laravel.log ---\n" . implode('', $lines);
+            }
+            $output = "Nenhuma saída capturada do comando wp-manager.sh.\n"
+                . "Isso geralmente indica um erro de permissão ou configuração.\n\n"
+                . "Possíveis causas:\n"
+                . "  1. www-data não consegue ler /etc/wp-manager/secrets.env\n"
+                . "     Fix: chown root:www-data /etc/wp-manager/secrets.env && chmod 640 /etc/wp-manager/secrets.env\n\n"
+                . "  2. systemctl reload nginx sem sudo\n"
+                . "     Fix: adicione www-data em /etc/sudoers.d/wp-manager\n\n"
+                . "  3. WP_PROJECT_ROOT incorreto no .env\n"
+                . "     Atual: " . env('WP_PROJECT_ROOT', '(não definido)') . "\n"
+                . $lastLines;
+        }
+
         return redirect()->route('sites.create')
             ->with('error', 'Erro ao criar site.')
-            ->with('error_detail', $result['output']);
+            ->with('error_detail', $output);
     }
 
     /**
