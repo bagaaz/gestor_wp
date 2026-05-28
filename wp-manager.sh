@@ -48,6 +48,9 @@ MYSQL_HOST="127.0.0.1"
 export WP_CLI_CACHE_DIR=/tmp/wp-cli-cache
 mkdir -p "${WP_CLI_CACHE_DIR}" 2>/dev/null || true
 
+# PHP explícito para evitar falha ao spawnar subprocessos
+export WP_CLI_PHP="$(command -v php8.4 2>/dev/null || command -v php 2>/dev/null)"
+
 # Defaults
 DEFAULT_WP_VERSION="latest"
 DEFAULT_WP_LOCALE="pt_BR"
@@ -265,7 +268,7 @@ PHP
     # 5. Configurações pós-instalação
     log_info "Aplicando configurações pt-BR e otimizações..."
 
-    run_wpcli "$site_name" rewrite structure '/%postname%/'
+    run_wpcli "$site_name" rewrite structure '/%postname%/' || true
     run_wpcli "$site_name" option update timezone_string 'America/Sao_Paulo'
     run_wpcli "$site_name" option update date_format 'd/m/Y'
     run_wpcli "$site_name" option update time_format 'H:i'
