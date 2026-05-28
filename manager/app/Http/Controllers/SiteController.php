@@ -165,7 +165,7 @@ class SiteController extends Controller
     public function destroy(Request $request, Site $site)
     {
         $keepDb = $request->boolean('keep_db', false);
-        $sitePath = '/var/www/sites/' . $site->name;
+        $sitePath = config('wp.sites_path') . '/' . $site->name;
         $siteExists = is_dir($sitePath) && file_exists($sitePath . '/wp-config.php');
 
         if ($siteExists) {
