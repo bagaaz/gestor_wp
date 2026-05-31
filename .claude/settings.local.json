@@ -15,7 +15,11 @@
       "Bash(docker exec:*)",
       "Bash(grep -n '\\\\\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)",
       "Bash(grep -n '\\\\\\\\\\\\\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)",
-      "Bash(grep -nF '\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)"
+      "Bash(grep -nF '\\\\$' /home/gabriel/projetos/gestor_wp/wp-manager.sh)",
+      "Bash(php artisan *)",
+      "Bash(php -l /var/www/html/gestor_wp/manager/app/Services/EvolutionService.php)",
+      "Bash(php -l /var/www/html/gestor_wp/manager/app/Services/WordPressService.php)",
+      "Bash(php -l /var/www/html/gestor_wp/manager/app/Http/Controllers/SettingsController.php)"
     ]
   }
 }

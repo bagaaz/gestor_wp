@@ -33,20 +33,23 @@ class SiteController extends Controller
     public function create()
     {
         $baseDomain = config('wp.base_domain');
-        return view('sites.create', compact('baseDomain'));
+        $plugins    = PluginRegistry::orderBy('name')->get();
+        return view('sites.create', compact('baseDomain', 'plugins'));
     }
 
     /**
-     * Criar novo site (step 1: valida e verifica se há plugins)
+     * Criar novo site
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'regex:/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/', 'unique:sites,name'],
-            'version' => ['nullable', 'string'],
-            'title' => ['nullable', 'string', 'max:255'],
-            'woocommerce' => ['nullable', 'boolean'],
-            'multisite' => ['nullable', 'boolean'],
+            'name'             => ['required', 'string', 'regex:/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/', 'unique:sites,name'],
+            'version'          => ['nullable', 'string'],
+            'title'            => ['nullable', 'string', 'max:255'],
+            'woocommerce'      => ['nullable', 'boolean'],
+            'multisite'        => ['nullable', 'boolean'],
+            'selected_plugins' => ['nullable', 'array'],
+            'selected_plugins.*' => ['integer', 'exists:plugin_registry,id'],
         ]);
 
         if ($request->expectsJson()) {
@@ -54,15 +57,6 @@ class SiteController extends Controller
             return response()->json($result, $result['success'] ? 201 : 422);
         }
 
-        // Verificar se há plugins cadastrados
-        $plugins = PluginRegistry::orderBy('name')->get();
-        if ($plugins->isNotEmpty()) {
-            // Guardar dados na session e redirecionar para seleção de plugins
-            session(['site_creation_data' => $validated]);
-            return redirect()->route('sites.select-plugins');
-        }
-
-        // Sem plugins, criar direto
         return $this->performCreation($validated);
     }
 

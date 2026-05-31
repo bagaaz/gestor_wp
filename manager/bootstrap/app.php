@@ -10,7 +10,9 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->alias([
+            'panel.auth' => \App\Http\Middleware\PanelAuth::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

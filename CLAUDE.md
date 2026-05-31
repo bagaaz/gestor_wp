@@ -296,7 +296,7 @@ Esta seção documenta o deploy em produção no VPS da **Dev Conecta**, onde o 
 | PHP socket | `/run/php/php8.4-fpm.sock` |
 | PHP ini | `/etc/php/8.4/fpm/php.ini` |
 | Painel | `https://wp.devconecta.com.br` |
-| Sites WP | `https://{nome}.wp.devconecta.com.br` |
+| Sites WP | `https://{nome}.automatizacoes.com.br` |
 
 ### Credenciais e Segredos
 
@@ -360,7 +360,7 @@ $path = config('wp.sites_path');
 As chaves WP estão definidas em `manager/config/wp.php`:
 - `config('wp.sites_path')` → `/var/www/wordpress`
 - `config('wp.project_root')` → `/var/www/html/gestor_wp`
-- `config('wp.base_domain')` → `wp.devconecta.com.br`
+- `config('wp.base_domain')` → `automatizacoes.com.br`
 - `config('wp.nginx_conf')` → `/etc/nginx/sites-available`
 - `config('wp.nginx_enabled')` → `/etc/nginx/sites-enabled`
 - `config('wp.backups_path')` → `/var/www/html/gestor_wp/backups`

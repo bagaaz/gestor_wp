@@ -54,7 +54,7 @@
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Resumo da criacao</h4>
                     <div class="grid grid-cols-2 gap-2 text-sm">
                         <span class="text-gray-500">Site:</span>
-                        <span class="text-gray-900 font-medium">{{ $siteData['name'] }}.localhost</span>
+                        <span class="text-gray-900 font-medium">{{ $siteData['name'] }}.{{ config('wp.base_domain') }}</span>
                         <span class="text-gray-500">WordPress:</span>
                         <span class="text-gray-900">{{ $siteData['version'] ?? 'latest' }}</span>
                         @if(!empty($siteData['woocommerce']))

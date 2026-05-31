@@ -2,9 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\PluginRegistry;
-use App\Models\Site;
 use App\Models\ActivityLog;
+use App\Models\PluginRegistry;
+use App\Models\Setting;
+use App\Models\Site;
 use Illuminate\Support\Facades\Log;
 
 class WordPressService
@@ -116,6 +117,8 @@ class WordPressService
                 'description' => "Site '{$name}' criado com WordPress {$version}",
                 'metadata' => $params,
             ]);
+
+            $this->notifyWhatsApp($name, $params);
         } else {
             Log::error("Falha ao criar site '{$name}'", ['output' => $output]);
             ActivityLog::create([
@@ -282,6 +285,36 @@ class WordPressService
         }
 
         return ['success' => $success, 'output' => $output];
+    }
+
+    private function notifyWhatsApp(string $name, array $params): void
+    {
+        $phone    = Setting::get('whatsapp_phone');
+        $instance = Setting::get('whatsapp_instance');
+
+        if (!$phone || !$instance) return;
+
+        $version = $params['version'] ?? 'latest';
+        $title   = $params['title'] ?? $name;
+        $url     = "https://{$name}.{$this->baseDomain}";
+        $db      = 'wp_' . str_replace(['-', '.'], '_', $name);
+        $woo     = !empty($params['woocommerce']) ? 'Sim' : 'Não';
+        $date    = now()->format('d/m/Y H:i');
+
+        $message = "🚀 *Novo site WordPress criado!*\n\n"
+            . "📌 *Nome:* {$name}\n"
+            . "📝 *Título:* {$title}\n"
+            . "🌐 *URL:* {$url}\n"
+            . "📦 *Versão WP:* {$version}\n"
+            . "🛒 *WooCommerce:* {$woo}\n"
+            . "🗃️ *Banco:* {$db}\n"
+            . "📅 *Criado em:* {$date}";
+
+        try {
+            app(EvolutionService::class)->sendText($instance, $phone, $message);
+        } catch (\Throwable $e) {
+            Log::warning('Falha ao enviar notificação WhatsApp', ['error' => $e->getMessage()]);
+        }
     }
 
     // ---- Helpers ----

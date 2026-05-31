@@ -802,6 +802,10 @@
     'nginx_enabled' => '/etc/nginx/sites-enabled',
     'backups_path' => '/var/www/html/gestor_wp/backups',
     'project_root' => '/var/www/html/gestor_wp',
-    'base_domain' => 'wp.devconecta.com.br',
+    'base_domain' => 'automatizacoes.com.br',
+    'panel_email' => 'gabriel@devconecta.com.br',
+    'panel_password' => 'Juxova@96911431',
+    'evolution_api_url' => 'https://evolution.devconecta.com.br',
+    'evolution_global_api_key' => '429683C4C977415CAAFCCE10F7D57E11',
   ),
 );

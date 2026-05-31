@@ -81,7 +81,7 @@
 
                 <div class="mt-6 mb-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ferramentas</div>
 
-                <a href="http://localhost:8080" target="_blank"
+                <a href="https://pma.devconecta.com.br" target="_blank"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
                     <i class="fas fa-database w-5 text-center"></i>
                     phpMyAdmin
@@ -95,11 +95,19 @@
                 </a>
             </nav>
 
-            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700 space-y-2">
                 <div class="flex items-center gap-2 text-xs text-gray-500">
                     <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    Docker Running
+                    Sistema online
                 </div>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit"
+                        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                        <i class="fas fa-right-from-bracket w-4 text-center"></i>
+                        Sair
+                    </button>
+                </form>
             </div>
         </aside>
 

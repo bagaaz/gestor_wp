@@ -30,7 +30,7 @@ NGINX_TEMPLATE="${PROJECT_DIR}/docker/nginx/templates/wordpress.conf.template"
 BACKUPS_DIR="${PROJECT_DIR}/backups"
 
 # Domínios
-BASE_DOMAIN="wp.devconecta.com.br"
+BASE_DOMAIN="automatizacoes.com.br"
 MANAGER_URL="https://wp.devconecta.com.br"
 
 # MySQL — carregado de arquivo de segredos (nunca hardcode aqui)
@@ -806,8 +806,8 @@ MUPLUGIN
 
     # 11. Configurar Nginx
     log_info "Configurando Nginx..."
-    sed "s/{{SITE_NAME}}/${site_name}/g" "${NGINX_TEMPLATE}" > "${NGINX_CONF_DIR}/site-${site_name}.conf"
-    ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
+    sed "s/{{SITE_NAME}}/${site_name}/g" "${NGINX_TEMPLATE}" | sudo tee "${NGINX_CONF_DIR}/site-${site_name}.conf" > /dev/null
+    sudo ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf" || ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
     sudo systemctl reload nginx 2>/dev/null || log_warn "Nginx não recarregado (configure sudoers). Execute: sudo systemctl reload nginx"
     log_success "Nginx configurado."
 
@@ -895,9 +895,9 @@ cmd_remove() {
 
     # 3. Remover config do nginx
     log_info "Removendo configuração do Nginx..."
-    rm -f "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
-    rm -f "${NGINX_CONF_DIR}/site-${site_name}.conf"
-    sudo systemctl reload nginx 2>/dev/null || log_warn "Nginx não recarregado (configure sudoers). Execute: sudo systemctl reload nginx" 2>/dev/null || log_warn "Nginx não recarregado (configure sudoers). Execute: sudo systemctl reload nginx"
+    sudo rm -f "${NGINX_ENABLED_DIR}/site-${site_name}.conf" || rm -f "${NGINX_ENABLED_DIR}/site-${site_name}.conf" || log_warn "Não foi possível remover symlink do Nginx (verifique sudoers)."
+    sudo rm -f "${NGINX_CONF_DIR}/site-${site_name}.conf" || rm -f "${NGINX_CONF_DIR}/site-${site_name}.conf" || log_warn "Não foi possível remover config do Nginx (verifique sudoers)."
+    sudo systemctl reload nginx 2>/dev/null || log_warn "Nginx não recarregado (configure sudoers). Execute: sudo systemctl reload nginx"
     log_success "Config Nginx removida."
 
     # 4. Remover arquivos
@@ -1042,8 +1042,8 @@ cmd_restore() {
     fi
 
     if [[ ! -L "${NGINX_ENABLED_DIR}/site-${site_name}.conf" ]]; then
-        sed "s/{{SITE_NAME}}/${site_name}/g" "${NGINX_TEMPLATE}" > "${NGINX_CONF_DIR}/site-${site_name}.conf"
-        ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
+        sed "s/{{SITE_NAME}}/${site_name}/g" "${NGINX_TEMPLATE}" | sudo tee "${NGINX_CONF_DIR}/site-${site_name}.conf" > /dev/null
+        sudo ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf" || ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
         sudo systemctl reload nginx 2>/dev/null || log_warn "Nginx não recarregado (configure sudoers). Execute: sudo systemctl reload nginx"
     fi
 
@@ -1100,8 +1100,8 @@ cmd_clone() {
 
     run_wpcli "$target" search-replace "https://${source}.${BASE_DOMAIN}" "${target_url}" --all-tables
 
-    sed "s/{{SITE_NAME}}/${target}/g" "${NGINX_TEMPLATE}" > "${NGINX_CONF_DIR}/site-${target}.conf"
-    ln -sf "${NGINX_CONF_DIR}/site-${target}.conf" "${NGINX_ENABLED_DIR}/site-${target}.conf"
+    sed "s/{{SITE_NAME}}/${target}/g" "${NGINX_TEMPLATE}" | sudo tee "${NGINX_CONF_DIR}/site-${target}.conf" > /dev/null
+    sudo ln -sf "${NGINX_CONF_DIR}/site-${target}.conf" "${NGINX_ENABLED_DIR}/site-${target}.conf" || ln -sf "${NGINX_CONF_DIR}/site-${target}.conf" "${NGINX_ENABLED_DIR}/site-${target}.conf"
     sudo systemctl reload nginx 2>/dev/null || log_warn "Nginx não recarregado (configure sudoers). Execute: sudo systemctl reload nginx"
 
     log_success "Site clonado com sucesso!"
@@ -1136,7 +1136,7 @@ cmd_start_site() {
     fi
 
     if [[ -f "${NGINX_CONF_DIR}/site-${site_name}.conf" ]]; then
-        ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
+        sudo ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf" || ln -sf "${NGINX_CONF_DIR}/site-${site_name}.conf" "${NGINX_ENABLED_DIR}/site-${site_name}.conf"
         sudo systemctl reload nginx 2>/dev/null || log_warn "Nginx não recarregado (configure sudoers). Execute: sudo systemctl reload nginx"
         log_success "Site '${site_name}' ativado."
     else

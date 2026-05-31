@@ -29,6 +29,11 @@
                       {{ $tab === 'login' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
                 <i class="fas fa-paint-brush mr-1"></i> Login
             </a>
+            <a href="{{ route('settings.index', ['tab' => 'whatsapp']) }}"
+               class="px-4 py-2 rounded-md text-sm font-medium transition-colors
+                      {{ $tab === 'whatsapp' ? 'bg-green-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                <i class="fab fa-whatsapp mr-1"></i> WhatsApp
+            </a>
         </nav>
     </div>
 
@@ -635,6 +640,212 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    {{-- ===== TAB: WHATSAPP ===== --}}
+    @elseif($tab === 'whatsapp')
+        @php
+            $waPhone         = $settings['whatsapp_phone'] ?? '';
+            $waInstance      = $settings['whatsapp_instance'] ?? '';
+            $waInstanceToken = $settings['whatsapp_instance_token'] ?? '';
+            $apiUrl          = config('wp.evolution_api_url');
+            $apiKey          = config('wp.evolution_global_api_key');
+            $apiReady        = !empty($apiUrl) && !empty($apiKey);
+        @endphp
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Configurações -->
+            <div class="lg:col-span-2 space-y-6">
+
+                @if(!$apiReady)
+                    {{-- Sem credenciais no .env: mostrar apenas o aviso --}}
+                    <div class="bg-amber-50 border border-amber-300 rounded-xl p-5 flex items-start gap-3">
+                        <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5 text-lg"></i>
+                        <div>
+                            <p class="text-sm font-semibold text-amber-800">Variáveis de ambiente não configuradas</p>
+                            <p class="text-xs text-amber-700 mt-1">
+                                Configure as variáveis abaixo no <code class="bg-amber-100 px-1 rounded">.env</code> e execute
+                                <code class="bg-amber-100 px-1 rounded">php artisan config:cache</code> para liberar as configurações de notificação.
+                            </p>
+                            <pre class="mt-3 text-xs bg-amber-100 text-amber-900 rounded p-3 font-mono leading-relaxed">EVOLUTION_API_URL=https://sua-evolution-api.com
+EVOLUTION_GLOBAL_API_KEY=sua-global-api-key</pre>
+                        </div>
+                    </div>
+
+                @else
+                    {{-- API configurada --}}
+
+                    {{-- Status da API --}}
+                    @if($evolutionInstances === null)
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                            <i class="fas fa-times-circle text-red-400 mt-0.5"></i>
+                            <div>
+                                <p class="text-sm font-semibold text-red-800">Não foi possível conectar à Evolution API</p>
+                                <p class="text-xs text-red-600 mt-1">
+                                    Verifique se o servidor <code class="bg-red-100 px-1 rounded">{{ $apiUrl }}</code> está acessível e a chave global está correta.
+                                </p>
+                            </div>
+                        </div>
+                    @elseif(count($evolutionInstances) === 0)
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+                            <i class="fas fa-exclamation-circle text-amber-400"></i>
+                            <p class="text-sm text-amber-800">Nenhuma instância encontrada na Evolution API. Crie uma instância primeiro.</p>
+                        </div>
+                    @else
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                            <div>
+                                <p class="text-sm font-semibold text-green-800">Evolution API conectada</p>
+                                <p class="text-xs text-green-700">
+                                    {{ count($evolutionInstances) }} {{ count($evolutionInstances) === 1 ? 'instância encontrada' : 'instâncias encontradas' }}
+                                    em <code class="bg-green-100 px-1 rounded">{{ $apiUrl }}</code>
+                                </p>
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Formulário (só aparece se houver instâncias) --}}
+                    @if($evolutionInstances !== null && count($evolutionInstances) > 0)
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200"
+                             x-data="{
+                                instances: {!! Js::from($evolutionInstances) !!},
+                                selectedName: '{{ old('whatsapp_instance', $waInstance) }}',
+                                selectedToken: '{{ old('whatsapp_instance_token', $waInstanceToken) }}',
+                                selectInstance(name) {
+                                    this.selectedName = name;
+                                    const inst = this.instances.find(i => i.name === name);
+                                    this.selectedToken = inst ? inst.token : '';
+                                }
+                             }">
+                            <div class="px-6 py-4 border-b border-gray-200">
+                                <h3 class="text-lg font-semibold text-gray-900">
+                                    <i class="fab fa-whatsapp text-green-500 mr-1"></i> Notificações WhatsApp
+                                </h3>
+                                <p class="text-sm text-gray-500 mt-1">
+                                    Quando um novo site WordPress for criado, uma mensagem será enviada para o número configurado.
+                                </p>
+                            </div>
+
+                            <form action="{{ route('settings.whatsapp') }}" method="POST" class="p-6 space-y-5">
+                                @csrf
+
+                                {{-- Número de destino --}}
+                                <div>
+                                    <label for="whatsapp_phone" class="block text-sm font-medium text-gray-700 mb-1">
+                                        Número de destino <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" name="whatsapp_phone" id="whatsapp_phone"
+                                           value="{{ old('whatsapp_phone', $waPhone) }}"
+                                           placeholder="5527998700053"
+                                           class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none font-mono
+                                                  @error('whatsapp_phone') border-red-400 @enderror">
+                                    <p class="mt-1 text-xs text-gray-400">Apenas dígitos com código do país. Ex: <code>5527998700053</code></p>
+                                    @error('whatsapp_phone')
+                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                {{-- Seleção de instância --}}
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Instância <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="grid grid-cols-1 gap-2">
+                                        <template x-for="inst in instances" :key="inst.name">
+                                            <label class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
+                                                   :class="selectedName === inst.name
+                                                       ? 'border-green-500 bg-green-50'
+                                                       : 'border-gray-200 bg-white hover:border-gray-300'">
+                                                <input type="radio"
+                                                       class="text-green-600 focus:ring-green-500"
+                                                       :checked="selectedName === inst.name"
+                                                       @change="selectInstance(inst.name)">
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-sm font-medium text-gray-900 font-mono" x-text="inst.name"></span>
+                                                        <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+                                                              :class="inst.connected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'">
+                                                            <span class="w-1.5 h-1.5 rounded-full inline-block"
+                                                                  :class="inst.connected ? 'bg-green-500' : 'bg-red-400'"></span>
+                                                            <span x-text="inst.connected ? 'Conectada' : 'Desconectada'"></span>
+                                                        </span>
+                                                    </div>
+                                                    <p class="text-xs text-gray-400 font-mono truncate mt-0.5" x-text="inst.id"></p>
+                                                </div>
+                                            </label>
+                                        </template>
+                                    </div>
+                                    {{-- Campos ocultos: enviados no form e preenchidos via Alpine --}}
+                                    <input type="hidden" name="whatsapp_instance" :value="selectedName">
+                                    <input type="hidden" name="whatsapp_instance_token" :value="selectedToken">
+                                    @error('whatsapp_instance')
+                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <div class="pt-4 border-t border-gray-200 flex items-center gap-3">
+                                    <button type="submit"
+                                            class="inline-flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+                                        <i class="fas fa-save"></i> Salvar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {{-- Botão de teste --}}
+                        @if($waPhone && $waInstance)
+                            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h4 class="text-sm font-semibold text-gray-900 mb-1">Testar notificação</h4>
+                                <p class="text-xs text-gray-500 mb-4">
+                                    Envia uma mensagem de teste para <code class="bg-gray-100 px-1 rounded">{{ $waPhone }}</code>
+                                    via instância <code class="bg-gray-100 px-1 rounded">{{ $waInstance }}</code>.
+                                </p>
+                                <form action="{{ route('settings.whatsapp.test') }}" method="POST">
+                                    @csrf
+                                    <button type="submit"
+                                            class="inline-flex items-center gap-2 bg-gray-800 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors">
+                                        <i class="fab fa-whatsapp"></i> Enviar mensagem de teste
+                                    </button>
+                                </form>
+                            </div>
+                        @endif
+                    @endif
+
+                @endif
+            </div>
+
+            <!-- Sidebar info -->
+            <div class="space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-sm font-semibold text-gray-900">Exemplo de notificação</h3>
+                    </div>
+                    <div class="p-5">
+                        <div class="bg-[#e9fdd0] rounded-xl p-4 text-sm text-gray-800 font-sans leading-relaxed shadow-sm border border-gray-200">
+                            <p>🚀 <strong>Novo site WordPress criado!</strong></p>
+                            <br>
+                            <p>📌 <strong>Nome:</strong> meu-site</p>
+                            <p>📝 <strong>Título:</strong> Meu Site</p>
+                            <p>🌐 <strong>URL:</strong> https://meu-site.automatizacoes.com.br</p>
+                            <p>📦 <strong>Versão WP:</strong> latest</p>
+                            <p>🛒 <strong>WooCommerce:</strong> Não</p>
+                            <p>🗃️ <strong>Banco:</strong> wp_meu_site</p>
+                            <p>📅 <strong>Criado em:</strong> {{ now()->format('d/m/Y H:i') }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                    <h4 class="text-sm font-semibold text-blue-800 flex items-center gap-2 mb-2">
+                        <i class="fas fa-lightbulb"></i> Como funciona
+                    </h4>
+                    <ul class="text-xs text-blue-700 space-y-2">
+                        <li><i class="fas fa-check text-blue-500 mr-1"></i> A notificação é enviada logo após a criação bem-sucedida do site</li>
+                        <li><i class="fas fa-check text-blue-500 mr-1"></i> Usa a Evolution API Go para enviar via WhatsApp</li>
+                        <li><i class="fas fa-check text-blue-500 mr-1"></i> Se a API estiver indisponível, a criação do site não é afetada</li>
+                        <li><i class="fas fa-check text-blue-500 mr-1"></i> Erros de envio ficam registrados no log do Laravel</li>
+                    </ul>
                 </div>
             </div>
         </div>

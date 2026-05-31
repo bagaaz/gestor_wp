@@ -81,6 +81,30 @@
                     </label>
                 </div>
 
+                @if($plugins->isNotEmpty())
+                <!-- Plugins do registro -->
+                <div class="space-y-3">
+                    <p class="text-sm font-medium text-gray-700">Plugins para instalar</p>
+                    @foreach($plugins as $plugin)
+                        <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors">
+                            <input type="checkbox" name="selected_plugins[]" value="{{ $plugin->id }}"
+                                   class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
+                                {{ $plugin->source === 'repository' ? 'bg-blue-100' : 'bg-purple-100' }}">
+                                <i class="fas {{ $plugin->source === 'repository' ? 'fa-globe text-blue-600' : 'fa-file-zipper text-purple-600' }} text-xs"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <span class="text-sm font-medium text-gray-900">{{ $plugin->name }}</span>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <code class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{{ $plugin->slug }}</code>
+                                    <span class="text-xs text-gray-400">{{ $plugin->source === 'repository' ? 'WordPress.org' : 'Upload' }}</span>
+                                </div>
+                            </div>
+                        </label>
+                    @endforeach
+                </div>
+                @endif
+
                 <!-- Info box -->
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 class="text-sm font-medium text-blue-800 flex items-center gap-2">

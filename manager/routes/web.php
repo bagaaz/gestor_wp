@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\ExportController;
@@ -7,38 +8,50 @@ use App\Http\Controllers\LogController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
-// Dashboard
-Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+// Autenticação
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Seleção de plugins na criação (antes do resource para não conflitar com {site})
-Route::get('/sites/select-plugins', [SiteController::class, 'selectPlugins'])->name('sites.select-plugins');
-Route::post('/sites/create-with-plugins', [SiteController::class, 'storeWithPlugins'])->name('sites.store-with-plugins');
+// Rotas protegidas
+Route::middleware('panel.auth')->group(function () {
 
-// Sites CRUD
-Route::resource('sites', SiteController::class)->except(['edit', 'update']);
+    // Dashboard
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-// Ações extras nos sites
-Route::post('/sites/{site}/backup', [SiteController::class, 'backup'])->name('sites.backup');
-Route::post('/sites/{site}/clone', [SiteController::class, 'clone'])->name('sites.clone');
+    // Seleção de plugins na criação (antes do resource para não conflitar com {site})
+    Route::get('/sites/select-plugins', [SiteController::class, 'selectPlugins'])->name('sites.select-plugins');
+    Route::post('/sites/create-with-plugins', [SiteController::class, 'storeWithPlugins'])->name('sites.store-with-plugins');
 
-// Gerenciamento de plugins do site
-Route::post('/sites/{site}/plugins/{plugin}/activate', [SiteController::class, 'pluginActivate'])->name('sites.plugins.activate');
-Route::post('/sites/{site}/plugins/{plugin}/deactivate', [SiteController::class, 'pluginDeactivate'])->name('sites.plugins.deactivate');
-Route::delete('/sites/{site}/plugins/{plugin}', [SiteController::class, 'pluginDestroy'])->name('sites.plugins.destroy');
+    // Sites CRUD
+    Route::resource('sites', SiteController::class)->except(['edit', 'update']);
 
-// Export para produção
-Route::get('/sites/{site}/export', [ExportController::class, 'showExportForm'])->name('sites.export');
-Route::post('/sites/{site}/export', [ExportController::class, 'export'])->name('sites.export.generate');
+    // Ações extras nos sites
+    Route::post('/sites/{site}/backup', [SiteController::class, 'backup'])->name('sites.backup');
+    Route::post('/sites/{site}/clone', [SiteController::class, 'clone'])->name('sites.clone');
 
-// Logs
-Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
-Route::post('/logs/clear-laravel', [LogController::class, 'clearLaravel'])->name('logs.clear-laravel');
+    // Gerenciamento de plugins do site
+    Route::post('/sites/{site}/plugins/{plugin}/activate', [SiteController::class, 'pluginActivate'])->name('sites.plugins.activate');
+    Route::post('/sites/{site}/plugins/{plugin}/deactivate', [SiteController::class, 'pluginDeactivate'])->name('sites.plugins.deactivate');
+    Route::delete('/sites/{site}/plugins/{plugin}', [SiteController::class, 'pluginDestroy'])->name('sites.plugins.destroy');
 
-// Configurações
-Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
-Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
-Route::post('/settings/php', [SettingsController::class, 'updatePhp'])->name('settings.php');
-Route::post('/settings/logo', [SettingsController::class, 'uploadLogo'])->name('settings.logo');
-Route::post('/settings/login-colors', [SettingsController::class, 'updateLoginColors'])->name('settings.login-colors');
-Route::post('/settings/plugins', [SettingsController::class, 'storePlugin'])->name('settings.plugins.store');
-Route::delete('/settings/plugins/{plugin}', [SettingsController::class, 'destroyPlugin'])->name('settings.plugins.destroy');
+    // Export para produção
+    Route::get('/sites/{site}/export', [ExportController::class, 'showExportForm'])->name('sites.export');
+    Route::post('/sites/{site}/export', [ExportController::class, 'export'])->name('sites.export.generate');
+
+    // Logs
+    Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+    Route::post('/logs/clear-laravel', [LogController::class, 'clearLaravel'])->name('logs.clear-laravel');
+
+    // Configurações
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::post('/settings/php', [SettingsController::class, 'updatePhp'])->name('settings.php');
+    Route::post('/settings/logo', [SettingsController::class, 'uploadLogo'])->name('settings.logo');
+    Route::post('/settings/login-colors', [SettingsController::class, 'updateLoginColors'])->name('settings.login-colors');
+    Route::post('/settings/plugins', [SettingsController::class, 'storePlugin'])->name('settings.plugins.store');
+    Route::delete('/settings/plugins/{plugin}', [SettingsController::class, 'destroyPlugin'])->name('settings.plugins.destroy');
+    Route::post('/settings/whatsapp', [SettingsController::class, 'updateWhatsapp'])->name('settings.whatsapp');
+    Route::post('/settings/whatsapp/test', [SettingsController::class, 'testWhatsapp'])->name('settings.whatsapp.test');
+
+});

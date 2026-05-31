@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\PluginRegistry;
 use App\Models\Setting;
+use App\Services\EvolutionService;
 use App\Services\PhpConfigService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class SettingsController extends Controller
 {
@@ -29,7 +31,10 @@ class SettingsController extends Controller
         // Plugins registrados
         $plugins = PluginRegistry::orderBy('name')->get();
 
-        return view('settings.index', compact('settings', 'hasLogo', 'phpDirectives', 'phpValues', 'phpActiveValues', 'plugins'));
+        // Instâncias Evolution Go (null = API não configurada ou falhou)
+        $evolutionInstances = app(EvolutionService::class)->fetchInstances();
+
+        return view('settings.index', compact('settings', 'hasLogo', 'phpDirectives', 'phpValues', 'phpActiveValues', 'plugins', 'evolutionInstances'));
     }
 
     public function update(Request $request)
@@ -196,6 +201,62 @@ class SettingsController extends Controller
     }
 
     /**
+     * Salvar configurações de notificação WhatsApp
+     */
+    public function updateWhatsapp(Request $request)
+    {
+        $request->validate([
+            'whatsapp_phone'          => ['required', 'string', 'max:30'],
+            'whatsapp_instance'       => ['required', 'string', 'max:255'],
+            'whatsapp_instance_token' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        Setting::set('whatsapp_phone',          $request->input('whatsapp_phone'));
+        Setting::set('whatsapp_instance',       $request->input('whatsapp_instance'));
+        Setting::set('whatsapp_instance_token', $request->input('whatsapp_instance_token', ''));
+
+        return redirect()->route('settings.index', ['tab' => 'whatsapp'])
+            ->with('success', 'Configurações WhatsApp salvas com sucesso!');
+    }
+
+    /**
+     * Enviar mensagem de teste via Evolution API
+     */
+    public function testWhatsapp(Request $request)
+    {
+        $phone    = Setting::get('whatsapp_phone');
+        $instance = Setting::get('whatsapp_instance');
+
+        if (!$phone || !$instance) {
+            return redirect()->route('settings.index', ['tab' => 'whatsapp'])
+                ->with('error', 'Configure o telefone e a instância antes de testar.');
+        }
+
+        $evolution = app(EvolutionService::class);
+
+        if (!$evolution->isConfigured()) {
+            return redirect()->route('settings.index', ['tab' => 'whatsapp'])
+                ->with('error', 'EVOLUTION_API_URL ou EVOLUTION_GLOBAL_API_KEY não configurados no .env.');
+        }
+
+        Log::info('WhatsApp test: enviando', ['instance' => $instance, 'phone' => $phone]);
+
+        $success = $evolution->sendText(
+            $instance,
+            $phone,
+            "✅ *Teste de notificação — WP Manager*\n\nAs configurações estão corretas e as notificações de criação de sites funcionarão normalmente."
+        );
+
+        Log::info('WhatsApp test: resultado', ['success' => $success]);
+
+        return redirect()->route('settings.index', ['tab' => 'whatsapp'])
+            ->with(
+                $success ? 'success' : 'error',
+                $success ? 'Mensagem de teste enviada com sucesso!' : 'Falha ao enviar mensagem. Verifique as configurações e o log do Laravel.'
+            );
+    }
+
+    /**
      * Cadastrar plugin no registro
      */
     public function storePlugin(Request $request)
@@ -213,13 +274,15 @@ class SettingsController extends Controller
 
         if ($validated['source'] === 'upload' && $request->hasFile('plugin_file')) {
             $file = $request->file('plugin_file');
-            $slug = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $originalName = $file->getClientOriginalName();
+            // Normaliza o slug: remove sufixos de duplicata do browser ex: nome(1).zip → nome
+            $slug = preg_replace('/\s*\(\d+\)$/', '', pathinfo($originalName, PATHINFO_FILENAME));
             $pluginsDir = storage_path('app/plugins');
             if (!is_dir($pluginsDir)) {
                 mkdir($pluginsDir, 0755, true);
             }
-            $file->move($pluginsDir, $file->getClientOriginalName());
-            $filePath = '/var/www/manager/storage/app/plugins/' . $file->getClientOriginalName();
+            $file->move($pluginsDir, $originalName);
+            $filePath = storage_path('app/plugins/' . $originalName);
         }
 
         PluginRegistry::updateOrCreate(
